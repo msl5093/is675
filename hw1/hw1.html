@@ -1,0 +1,41 @@
+<html>
+    <head>
+        <title>Hw1 - Mike Lehman</title>
+    </head>
+    <body>
+        <h3>Homework #1</h3>
+        <h4>Step 1: Data Collection</h4>
+        <p>The following is an examination of the Wisconsin Breast Cancer Data using the k Nearest Neighbors approach to machine learning. The original dataset can be found <a href="https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+%28Diagnostic%29" target="_blank">here</a> and contains numeric measurements of digitized images of fine-needle aspirate of breast mass. The original data set found at the mentioned URL does not contain header information. The mainupulated data set collected from the text book (describe it later) contains detailed header information and has seen the records randomized or reordered from the original data set, perhaps to support better results when applying different machine learning techniques. </p>
+
+        <p>The orginal data set contains no missing values; however, it does appear upon examination of the original unformatted data set that there were initially more records (698) than the text book's data set presents. It may be possible that some of the unformatted records were dropped for one reason or another (extremely high or low values, noisy data, etc.) so this should be taken into consideration in determining the accuracy of any results.</p>
+        
+        <p>The goal of the approach is to determine how the different cell measurements relate to the final diagnosis, benign or malignant. </p>
+
+        <h4>Step 2: Data Exploration/Preparation</h4>
+        <p>Scatterplots can be used to assess relationships between different values in the data set. First, we can look to see if there is any correlation between the numeric values, texture_mean and perimeter_mean. These both relate to the shape of the cell nuclei, so it would be safe to assume it may be worth examining these two variables to see if there is any relationship. The resulting scatterplot can be observed <a href="https://swe.umbc.edu/~mlehman2/is675/40401/knn3.png" target="_blank">here</a>. It is easy to see that there is no real correlation as values appear at random locations across the plot.</p>
+
+        <p>On the other hand, when plotting the relationship between area_mean and perimeter_mean there is a very strong linear correlation as observed in the resulting scatterplot <a href="https://swe.umbc.edu/~mlehman2/is675/40401/knn4.png" target="_blank">here</a>. Additionally one can see that nearly all the malignant values appear at the higher end of the scale for both area_mean and perimeter_mean, so it may be safe to assume that the relationship between cell nuclei area and perimeter can be a strong indicator for whether a cell is benign or malignant. As there is a strong correlation between these features, a scatterplot was constructed using all records opposed to just the first 50 and can be observed <a href="https://swe.umbc.edu/~mlehman2/is675/40401/knn5.png" target="_blank">here.</a> The data is more widely distributed but still follows the patterns as previously mentioned and observed among the first 50 records.</p>
+
+        <p>While completing the exercises in the textbook, it becomes clear that the data set needs some cleaning to properly apply a k-Nearest Neighbors algorithm. To do so, the numeric values in the data set were normalized to account for the large range in some of the values. k-Nearest Neighbors is highly susceptible to large ranges in values, so normalization of the numeric data is necessary. Two normalization approaches were applied, min-max normalization and z-score. The efficiacy of each approach will be discussed in the conclsion.</p>
+
+        <p>Other data cleaning steps were to drop the Id feature from the data set as this is not a numeric data or factor that is relevant to the data set. </p>
+
+        <p>Lastly, during the data preparation step, train and test data sets were created to apply the final kNN algorithm against. This consisted of splitting the data set into two smaller subsets (train = 469 rows, test = 100 rows). Finally, test label data frames (train and test) were created that contain the target feature (diagnosis) relative to the train and test data sets that were previously created.</p>
+
+        <h4>Step 3: Model Training</h4>
+        <p>Now that the data has been cleaned, normalized, and broken out into subsets, an implementation of the kNN algorithm can be applied to the data using the 'class' R library. The knn() function accepts the train data set, the test data set, the class factor vector of the train data set (which contains the target feature) and a k value.</p>
+
+        <p>Four different k values (11, 15, 21, and 27) were applied to get a range of models to assess. Additionally, both min-max normalized and z-score normalized data sets were passed for a total of eight models to evaluate.</p>
+
+        <h4>Step 4: Model Assessment</h4>
+        <p>Using two different methods of numeric data normalization and four different k values results in a total of eight models to evaluate. Assessing the two normalization methods overall, there is a noticable difference in the performance of the two. Overall, min-max normalization resulted in much more accurate results. Particularly, z-score normalization seemed to produce many more false negative results, with all four models producing between seven and nine false negatives. This is particularly troubling as this means the model incorrectly classified many records as benign where they were actually malignant. This of course also led to fewer true positives.</p>
+
+        <p>Min-max normalization produced much more accurate results with no more than 4 false negatives across all four k values. Interestingly, regardless of the normalization method used, true negative results always returned the same value for all k values. For all four k values tested, there did not seem to be a great deal of variance when using the same normalization method. This would indicate that the data is tightly packed. Applying any greater or smaller k value than those applied would likely lead to problems of overfitting, as applying different k values to reduce the number of false negatives in this data set could produce less accurate results in a different data set.</p>
+
+        <p>A k value of 21 seems to be the best based on the performance of the eight different models. Also, min-max normalization by far is the more accurate method for normalizing the data for a kNN approach. The superior performance of min-max normalization may suggest that the data is highly impacted by scale and range of values. All nromalized values using min-max fall between zero and one whereas z-score standardization will produce great ranges based ont he distribution of the data. Examining the summary statistics for the z-score standardized data, there appear to be some outliers in certain features with scores exceeding three, which indicates a highly unqiue value for a z-score. As kNN is highly susceptible to ranges in data, this could be why less accurate results were produced on the z-score standardized data.</p>
+
+        <p>All eight cross tables can be observed<a href="https://swe.umbc.edu/~mlehman2/is675/40401/crosstablehw1.txt" target="_blank"> here.</a></p>
+
+        <p>R source code can be found <a href="https://swe.umbc.edu/~mlehman2/is675/40401/wbcdR.pdf" target="_blank">here.</a></p>
+    </body>
+</html>
