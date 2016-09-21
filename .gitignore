@@ -1,0 +1,5 @@
+# ignore .DS_Store if any development on Mac
+.DS_Store
+
+# ignore .Rhistory
+.Rhistory
