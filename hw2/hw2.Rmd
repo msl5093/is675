@@ -1,0 +1,52 @@
+---
+title: "IS675 HW2"
+author: "Mike Lehman"
+date: "September 21, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This is where the Introduction text goes. 
+
+## Data Collection and Preparation
+
+This is where stuff about collecting, cleaning, and preparing data goes.
+
+R code chunk below:
+
+```{r cars}
+summary(cars)
+```
+
+### Header 3
+
+### Header 3
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+##
+
+##
+
+##
+
+## Model Performance
+
+### Baseline
+
+### Improving Performance
+
+## Conclusion
+
+[R Source](www.rstudio.com) 
