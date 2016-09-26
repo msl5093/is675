@@ -1,7 +1,7 @@
 ---
 title: "IS675 HW2"
 author: "Mike Lehman"
-date: "September 21, 2016"
+date: "September 26, 2016"
 output: html_document
 ---
 
@@ -11,40 +11,285 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-This is where the Introduction text goes. 
+The goal of this assessment is to apply a Naive Bayes classifier to a corpus of text data to determine the probability that a given message falls under the cateogry of either spam or ham (non-spam). Naive Bayes is a machine learning approach that is particularly useful for dealing with non-numeric data, and is particularly suited for text categorization tasks such as the one detailed in this report.
+
+One important distinction to note regarding Naive Bayes classifiers, is that Naive Bayes considers the value of a feature to be independent of the value of any other feature. This is an important consideration for a text classification task as the order of words could have a relevant impact in determining whether a message is spam or ham. 
+
+However, a Naive Bayes classifier remains a very useful tool to determine feature categorization based on frequency of the target feature in the data set, relative to any other features.
 
 ## Data Collection and Preparation
 
-This is where stuff about collecting, cleaning, and preparing data goes.
+The original data set can be found at the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/machine-learning-databases/00228/). The data resides in the .zip file found at this directory. Inside that .zip file is a plain text file that contains 5,574 separate SMS messages. Each message begins with a classification of spam or ham, followed by a tab, then the message text. New messages begin with the classification, with no space following the previous message.
 
-R code chunk below:
+4,827 (86.6%) of the messages are ham and 747 (13.4%) are spam. The data are not in any inherent order by any feature, so there is no need to randomize the rows. 
 
-```{r cars}
-summary(cars)
+The file used for this assessment is the same data, but converted to a .CSV file for ease of import. The characteristics of the data set remain the same, two features: type (categorical: ham or spam) and text (character string).
+
+We will start by loading the data into a data frame object in R and taking a preliminary overview of the data:
+
+```{r}
+sms_raw <- read.csv("sms_spam.csv", stringsAsFactors = FALSE)
+str(sms_raw)
 ```
 
-### Train Model
+We can see, and intuitively already know, that the type vector should be converted to a factor since it is a categorical feature with two levels:
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+sms_raw$type <- factor(sms_raw$type)
+str(sms_raw$type)
+table(sms_raw$type)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Next, we'll have to extract the text feature and export to a corpus and examine the contents. To accomplish this, we will use the tm R library: 
 
-##
+```{r}
+library(tm)
+sms_corpus <- VCorpus(VectorSource(sms_raw$text))
+print(sms_corpus)
+inspect(sms_corpus[1:2])
+as.character(sms_corpus[[1]])
+lapply(sms_corpus[1:2], as.character)
+```
 
-##
+The use of the as.character function allows us to look at the content of the first and second values of the corpus and not just the meta data for those elements.
 
-##
+Examining the corpus, we can see that there is some cleaning of the data that will be required before proceeding any further. 
+
+First, we will convert all text to lower case so that text such as: Sale and sale do not register as different features:
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus, content_transformer(tolower))
+as.character(sms_corpus[[1]])
+as.character(sms_corpus_clean[[1]])
+```
+
+There are also a number of other feature characteristics that could throw off the classifier. For example, numbers have not real bearing on the type of message. Punctuation as well should be removed as it will not provide any meaningful information.
+
+Finally, we should also consider the frequency of "stop words" or frequently occurring words that provide no additional insight, such as: a, an, the. For this task we will use the tm package's built-in stop words character vector and passing to the removeWords function:
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeNumbers)
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeWords, stopwords())
+sms_corpus_clean <- tm_map(sms_corpus_clean, removePunctuation)
+```
+
+The final step is to ensure that all feature words with different permutations and tenses are treated the same so as to achieve more accurate results. This can be achieved through a process known as word stemming. To do this we will use a function that is part of the SnowballC library. An example of word stemming can be seen below:
+
+```{r}
+library(SnowballC)
+wordStem(c("learn", "learned", "learning", "learns"))
+```
+
+Since a Naive Bayes classifier is highly dependent on the frequency of a feature, words with their different tenses should be treated as one feature instead of multiple. Let's apply the wordStem function to the entire text corpus, and strip whitespace while we're at it:
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, stemDocument)
+sms_corpus_clean <- tm_map(sms_corpus_clean, stripWhitespace) 
+```
+
+Let's compare the original text corpus to our cleansed object by examining the first three elements of each:
+
+```{r}
+lapply(sms_corpus[1:3], as.character)
+lapply(sms_corpus_clean[1:3], as.character)
+```
+
+## Train Model
+
+Now that our data object is cleansed to ensure a higher degree of accuracy, we will create a training data set upon which to train our classifer.
+
+Since Naive Bayes (at least for our assessment) works on basic probability, we are highly dependent on the frequency of a term appearing in order to properly train our classifier. The best way to map the frequency of a feature to the feature itself is by creating a Document Term Matrix (DTM) from our text corpus. Document Term Matrices essentially count the number of times a term appears in a collection (in this case our text corpus) and creates a two-dimensional table to track the frequencies.
+
+DTMs are what are known as sparse matrices, meaning that most of the cells in the resulting table will be empty as certain words are likely to appear in only a few messages. For example, the word 'fish' may only appear in one of the 5,574 messages, leaving the 'fish' entry empty (count of zero) for all other messages.
+
+Fortunately, the tm package includes a function for just this purpose:
+
+```{r}
+sms_dtm <- DocumentTermMatrix(sms_corpus_clean)
+```
+
+After creating a DTM from our cleansed corpus, we can create train and test data sets to begin building our classifier by splitting the DTM:
+
+```{r}
+sms_dtm_train <- sms_dtm[1:4169, ]
+sms_dtm_test  <- sms_dtm[4170:5559, ]
+```
+
+Finally, we will grab the type feature from the original raw data set, assigning the values to our train and test label objects and take the same number of rows for train and test as before:
+
+```{r}
+sms_train_labels <- sms_raw[1:4169, ]$type
+sms_test_labels  <- sms_raw[4170:5559, ]$type
+```
+
+Before proceding, we should validate that the train and test data sets are roughly proportional to the amount of ham and spam as reported in the original data from UCI:
+
+```{r}
+prop.table(table(sms_train_labels))
+prop.table(table(sms_test_labels))
+```
+
+#### Wordclouds
+
+Although not a particularly insightful tool, word clouds can be a useful way to take a preliminary visual overview of text data. As the data we are working with is entirely text, let's examine the spam and ham messages to see what are some of the most frequently occurring terms.
+
+First, let's create two data objects that contain only spam and only ham terms from the original raw data set:
+
+```{r}
+spam <- subset(sms_raw, type == "spam")
+ham  <- subset(sms_raw, type == "ham")
+```
+
+Let's create three sets of word clouds using different max words and minimum frequencies to see what different results we get:
+
+```{r}
+library(wordcloud)
+wordcloud(spam$text, max.words = 40, scale = c(3, 0.5))
+wordcloud(ham$text, max.words = 40, scale = c(3, 0.5))
+
+wordcloud(spam$text, min.freq = 25, scale = c(3, 0.5))
+wordcloud(ham$text, min.freq = 25, scale = c(3, 0.5))
+```
+
+Using the minimum frequency of 25, we can see that there are far fewer frequently used words in spam messages than in ham messages. This intuitively makes sense as users writing acutal messages to one another would have a much larger vocabulary than a programmed bot or script, but nonetheless is still interesting to see what are the most frequently used spam words. It appears that: call, free, mobile, and claim occur frequently in spam messages.
+
+Again, this does not help us to build and train any model for predicting message type, but word clouds are still useful as an exploratory tool.
+
+## Train Model (cont.)
+
+Although our text corpus was cleansed to account for vagaries such as capitalization, numbers, and puntuation, there are still some steps we need to take to ready our training model.
+
+Naive Bayes classifiers are highly susceptible to zero frequency values, of which our sparse DTMs are largely composed. The classifier would treat these zero entries as equally valuable as those where the frequency count is much greater, which is the case when using a Naive Bayes classifier. However, we know this to not be the case.
+
+To remedy this, we can remove terms with a low occurring frequency from our data sets using the removeSparseTerms() function:
+
+```{r}
+sms_dtm_freq_train <- removeSparseTerms(sms_dtm_train, 0.999)
+sms_dtm_freq_train
+```
+
+The value of 0.999 is passed to set the sparsity threshold for terms to remove. Essentially this is equal to stating: "remove terms that are MORE sparse than 0.999" with sparse being defined as terms that occur in less than 26% of the messages. 
+
+The closer the value passed approaches 1.0, the more terms will be excluded. Similarly, the lower the number approaches to 0.0, the fewer the number of terms will be removed from the matrix. By removing 0.999 percentage of items, we ensure that we removed the most sparse items as we possibly can within reason. Any higher may have been too much.
+
+Now that we have our DTM loaded into a new object with sparse terms removed, we can find the most frequently occurring terms.
+
+Let's pass over the original train DTM and find terms that appear five or more times:
+
+```{r}
+findFreqTerms(sms_dtm_train, 5)
+sms_freq_words <- findFreqTerms(sms_dtm_train, 5)
+str(sms_freq_words)
+```
+
+Now we can create new train and test DTMs that contain only frequently occurring terms, with sparse terms removed by searhing our frequency DTMs and looking only for columns in which a frequent term appears:
+
+```{r}
+sms_dtm_freq_train <- sms_dtm_train[ , sms_freq_words]
+sms_dtm_freq_test <- sms_dtm_test[ , sms_freq_words]
+```
+
+As a last step to readying our model, we will want to convert the frequency counts to a factor. This is important because at this time our train and test objects contain counts of terms. This data is numeric and thus not particularly useful to a Naive Bayes classifier. All we really need our classifer to know is whether a term is considered as frequently occurring in a message type, not the exact count.
+
+To finish our preparation, let's create a custom function that converts the frequency counts into a factor with two levels, yes or no.
+
+```{r}
+convert_counts <- function(x) {
+  x <- ifelse(x > 0, "Yes", "No")
+}
+```
+
+The convert_counts function will check to see what the frequency of a term is, and if it is greater than zero assign yes, otherwise it will assign a value of no. 
+
+We will apply our convert_counts function to the train and test frequency DTMs and assign the results to our original train and test data sets. The MARGIN value is passed to tell the apply() function that we are looking only at the columns in the frequency DTMs:
+
+```{r}
+sms_train <- apply(sms_dtm_freq_train, MARGIN = 2, convert_counts)
+sms_test  <- apply(sms_dtm_freq_test, MARGIN = 2, convert_counts)
+```
+
+Finally we are ready to train our classifier. Naive Bayes classifers first require that we train our classifier, then make our prediction. Model performance will be evaluated in the next section:
+
+```{r}
+library(e1071)
+sms_classifier <- naiveBayes(sms_train, sms_train_labels)
+```
 
 ## Evaluate Model Performance
 
+Now that we have trained our classifier, we will apply it to our test data set and see how accurately the model performs:
+
+```{r}
+sms_test_pred <- predict(sms_classifier, sms_test)
+```
+
+To examine the results, let's create a cross tabulation using our test prediction results and the test labels:
+
+```{r}
+library(gmodels)
+CrossTable(sms_test_pred, sms_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+
 ### Baseline
+
+In the results above, We can see from this first assessment that our classifier successfully predicted spam in 1201 out of 1231 messages. However, there are also six cases where our classifier predicted spam and the message was actually ham. Similarly, ham was predicted 30 times out of the 1231 where the message was actually spam.
+
+These numbers are quite good. Classifying 30 spam messages as ham is an acceptable trade-off considering our classifier only classified 6 ham messages as spam. In a practical, real-world application, this rate would likely be cosnidered acceptable.
+
+However, let's see if we can fine-tune our classifier to get better results.
 
 ### Improving Performance
 
+Although our intial model was highly successful, there are considerations for improvement. Because a Naive Bayes classifier treats all features as indepdent, there can be scenarios where this can skew the data even in cases where we have carefully cleaned and prepared the model prior to training.
+
+For example, there may be a scenario where the term, "giveaway" does not appear in any spam messages in the training set; however, it may appear multiple times in the test data set. This is problematic because our classifier has decided that because "giveaway" does not occur with any spam messages, the probability that the term will indicate spam is zero.
+
+To account for such biases, we can apply a Laplacian estimator to our training data set. Laplacian estimators allow for the assignment of non-zero probability to elements that do not occur in the sample. This means that if a term does not occur in our training data set, we can apply a value that is not zero so that it does not skew the prediction as much as it would if it had a zero probability.
+
+Fortunately, this is built in to the e1071 library we are already using for our model classificaiton. 
+
+```{r}
+# laplace = 1
+sms_classifier <- naiveBayes(sms_train, sms_train_labels, laplace = 1)
+sms_test_pred <- predict(sms_classifier, sms_test)
+```
+
+We will pass our train data set and labels to the naiveBayes function once again, but this time add a laplace value of 1, then run our prediction again:
+
+```{r}
+CrossTable(sms_test_pred, sms_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+
+It looks like applying a Laplace estimator of one resulted in a slightly more accurate model. Only five ham messages were filtered out as spam and only 28 spam messages were passed through as ham.
+
+Considering the increase in performance using Laplace estimators, it makes sense to increase the estimator and try a larger Laplace value and examine the results. Let's try Laplace values of two and four and see how that may effect our results:
+
+```{r}
+# laplace = 2
+sms_classifier <- naiveBayes(sms_train, sms_train_labels, laplace = 2)
+sms_test_pred <- predict(sms_classifier, sms_test)
+CrossTable(sms_test_pred, sms_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+
+# laplace = 4
+sms_classifier <- naiveBayes(sms_train, sms_train_labels, laplace = 4)
+sms_test_pred <- predict(sms_classifier, sms_test)
+CrossTable(sms_test_pred, sms_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+
+Examining the results, it appears that increasing the Laplace estimator to two yielded interesting results. Using and estimator of two, the amount of ham messages mis-classified as spam went down; however, more spam messages were classified as ham.
+
+With the superior spam filtering capability of this model, the case can be made that a Laplace estimator of two may be even better than one, depending on the performance trade-off one is willing to make.
+
+An estimator of four however, was somewhat less successful as it did not improve on the estimator of one. Using four, we mis-classified the same amount of ham messages as spam, and allowed even more spam through as ham. An estimator of four is probably not advisable and may even be a case of overfitting the data, even without knowing which features are getting their probability measures altered.
+
 ## Conclusion
 
-[R Source](www.rstudio.com) 
+Based on the results above, one can see how powerful Naive Bayes classifiers can be for tasks such as text categorization and classification. With only a minimal amount of cleaning of the data, we were able to create a classifier that successfully predicted categorized spam/ham messages within a degree of accuracy approaching 99%. 
+
+There were of course a few outliers, but the overall trade-offs in performance are minor compared to the successful results. Although our baseline model performed quite well, with the power of Laplace estimators, one can see how we can improve model accuracy by accounting for missing values in a training sample.
+
+Overall, the greatest degree of accuracy was achieved using a Laplace estimator of one. A value of two allowed for fewer mis-classifications of ham messages as spam (difference of -1), but allowed more spam messages (difference of +6) through as ham. This could be considered equally efficient and would be dependent on the judgement of the trade-off between the two differences.
+
+Further refinement could be accomplished by improving methods for replacing punctuation and using a customized list of stop words to remove from the corpus; however, it is not likely that the success rate will be much higher given how successful we have already been.
+
+[R Source](hw2.r) 
