@@ -4,13 +4,14 @@ str(credit)
 
 table(credit$checking_balance)
 table(credit$savings_balance)
+table(credit$credit_history)
 
 summary(credit$months_loan_duration)
 summary(credit$amount)
 
 table(credit$default)
-set.seed(123)
 
+set.seed(123)
 train_sample <- sample(1000, 900)
 str(train_sample)
 
@@ -29,11 +30,11 @@ summary(credit_model)
 
 credit_pred <- predict(credit_model, credit_test)
 
-# Evaluate Model Performance
+# Evaluating Model Performance
 library(gmodels)
 CrossTable(credit_test$default, credit_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
 
-# Improving Performance
+# Improving Model Performance
 credit_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10)
 credit_boost10
 summary(credit_boost10)
@@ -69,3 +70,30 @@ ctree_model <- ctree(default ~ ., data = credit_train)
 plot(ctree_model)
 ctree_predict <- predict(ctree_model, credit_test)
 CrossTable(credit_test$default, ctree_predict, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+
+##############################
+
+# Data Collection and Preparation
+mushrooms <- read.csv("mushrooms.csv", stringsAsFactors = TRUE)
+str(mushrooms)
+
+mushrooms$veil_type <- NULL
+
+table(mushrooms$type)
+
+# Train Model
+library(RWeka)
+mushroom_1R <- OneR(type ~ ., data = mushrooms)
+
+# Evaluate Model Performance
+mushroom_1R
+summary(mushroom_1R)
+
+# Improving Performance
+mushroom_JRip <- JRip(type ~ ., data = mushrooms)
+mushroom_JRip
+summary(mushroom_JRip)
+
+library(C50)
+mushroom_c5rules <- C5.0(type ~ odor + gill_size, data = mushrooms, rules = TRUE)
+summary(mushroom_c5rules)

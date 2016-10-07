@@ -1,7 +1,7 @@
 ---
 title: "IS675 HW2"
 author: "Mike Lehman"
-date: "September 21, 2016"
+date: "October 6, 2016"
 output: html_document
 ---
 
@@ -11,41 +11,220 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-This is where the Introduction text goes. 
+The goal of this assessment is to apply a Decision Tree classifier to a set of financial data from Germany in order to determine the likelihood that an individual will default on a loan. 
+
+Decision trees are classifiers that model relationships among features in a data set to potential outcomes. One major advantage in the use of decision tree classifiers is that the output of the model is highly readable and can be easily understood by those that do not possess an intimate knowledge of the model or the underlying data. 
+For our current task, decision tree classifiers lend themselves well to dealing with the type of data which will be discussed later. There are however some cases where decision tree classifiers are poorly suited for a machine learning task. Such examples include data that is largely numeric values as well as nominal features with many levels.
+
+Lastly, there are some inherent weaknesses with decision tree classifers. They are known as "greedy learners", meaning that at each split/decision of a given feature, the algorithm takes the split that provides the best results specific to that feature. This can result in massively complex trees that can overfit the data for certain features. Additionally, the larger the tree grows (and the size of the data set) the more computationally expensive the model becomes. As mentioned, overfitting is a very common problem in decision tree classifiers as we will later learn.
 
 ## Data Collection and Preparation
 
-This is where stuff about collecting, cleaning, and preparing data goes.
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
 
-R code chunk below:
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
 
-```{r cars}
-summary(cars)
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:
+
+```{r}
+credit <- read.csv("credit.csv")
+str(credit)
 ```
 
-### Header 3
+First, let's explore a few of the features found in our credit data set that would likely indicate a loan default:
 
-### Header 3
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+table(credit$checking_balance)
+table(credit$savings_balance)
+table(credit$credit_history)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Several of the features are numeric:
 
-##
+```{r}
+summary(credit$months_loan_duration)
+summary(credit$amount)
+```
 
-##
+Lastly, let's examine our target feature (default):
 
-##
+```{r}
+table(credit$default)
+```
 
-## Model Performance
+Based on this observation, we must be careful to ensure that our train and test data sets are randomized to prevent skewing our model. Perhaps the data contains only small loans in the first few hundred records and only higher loans in the last 100. If we simply split the data by rows we may end up with a test data set that is too dissimilar from the one used to train our model. 
 
-### Baseline
+To prevent this, we will take advantage of R's sample() function to randomize the rows selected for train and test. Prior to that, we will also set a default seed value for sample() so that these results can be replicated later if required:
 
-### Improving Performance
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+str(train_sample)
+```
+
+The sample() function creates a vector of 900 integer values between 1-1000 based on our inputs. Next, let's apply our train_sample vector to populate our train and test data sets:
+
+```{r}
+credit_train <- credit[train_sample, ]
+credit_test  <- credit[-train_sample, ]
+```
+
+This creates our train and test data sets by selecting only our records whose indices appear only in the train sample vector for our train data set and subsequently our test data contains only those records whose indices do not appear in the train sample vector. 
+
+Finally, let's validate that each of our train and test data sets contain a roughly equal proportion of each of our target features:
+
+```{r}
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+## Train Model
+
+Now that we have our train and test data sets, we can being to train our model. To do so, we will utilize the C5.0 R library that is based on the C5.0 algorithm.
+
+C5.0 has many inherent benefits for decision tree modeling such as: handling numeric or nominal features and missing data, excluding unimportant features, modeling large and small data sets, and producing easy to interpret models.
+
+It is worth briefly examining how the C5.0 algorithm determines the best feature split during model creation. Purity is known as the degree to which a subset of examples contains only a single class. To determine what feature split would result in the most pure subset, C5.0 uses the concept of entropy as borrowed from information theory.
+
+In the scope of information theory, entropy quantifies the randomness or disorder within a set of class values. Data sets with high entropy are diverse and contain many values that provide little to no information about other items that may belong in the set. Basically, how much less diverse would the data set become if this feature is split?
+
+The answer to this question produces what is known as information gain. How much more homgenous (less diverse) does the resulting data set become once the feature is split? The higher the information gain, the more homogenous the resulting data set. This is not the only method for selecting features to split; however, it is the method used by the C5.0 algorithm.
+
+Finally, a major hurdle in using decision trees is overcoming the problem of overfitting. By their nature, decision trees will often split features so much that the tree can grow large and unwieldy and split until each example is perfectly classified. Many of the decisions made at this level are overly specific to the data set and will not translate accurately to unseen data - an obvious case of overfitting. 
+
+To overcome this hurdle, the process of pruning is introduced to reduce the size of a tree such that it generalizes better to unseen data. Pruning can be accomplished by pre-pruning, or preventing a tree from growing beyond a certain size, thus limiting the number of splits. An obvious drawback to pre-pruning is that this means the model may miss subtle, but important patterns.
+
+Post-pruning involves growing a tree that is intentionally large but and removing leaf nodes (the final, terminal endpoint of a path in a given tree) to reduce the size of the tree. C5.0 utilizes post-pruning by default and determines which leaf nodes and entire branches should be removed or moved further up the tree.
+
+Fortunately, to utilize the C5.0 algorithm, all we need to do is load the library and pass to train data set (less the target feature) and a vector containing our target feature from our original data set:
+
+```{r}
+library(C50)
+credit_model <- C5.0(credit_train[-17], credit_train$default)
+credit_model
+summary(credit_model)
+```
+
+As we can see from the output, the credit_model object now contains a C5.0 decision tree. From these outputs we can see some detailed information about our tree. The size of the tree is 57, meaning the tree is 57 decisions deep. The raw output of calling the tree shows details of the decisions which were made.
+
+The (x/y) values after each decision indicate how many samples were met the criteria (x) and which were incrrectly classified (y).
+
+The output of summary(credit_model) displays a confusion matrix which is a cross-tabulation indicating a model's incorrectly classified records. Overall, we can see that the model had an overall error rate of 14.8% for a total of 133/900 samples incorrectly classified. In the confusion matrix we see that our model particularly had a problem with classifying false negatives(98), actual yes values that were classified as no values.
+
+Next, let's pass our test data set into our model and see how the results compare to the train results:
+
+```{r}
+credit_pred <- predict(credit_model, credit_test)
+```
+
+Now that our predicition has been made, we will evaluate its results in the next section.
+
+## Evaluating Model Performance
+
+Let's create a cross-tabulation to evaluate the results of our prediction against the actual default values from our original data set:
+
+```{r}
+library(gmodels)
+CrossTable(credit_test$default, credit_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+In total, our model correctly predicted 59 cases of no default, and 14 of yes for a total of a 73% success rate with an error rate of 27%. Specifically, the model classified only 14 of the total 33 default yes values. As this is the feature value we are more concerned with, this is not a particularly encouraging result. It would have been almost as effective (67% success rate) if we had simply predicted that no loans would default.
+
+Next, we will explore methods to imrpove our model as well as other alternatives to building decision tree classifiers.
+
+## Improving Model Performance
+
+In decision tree classification, adaptive boosting is a process in which many separate decision trees are built and the trees vote on the best class for each example. Adpative boosting can be applied more generally to any machine learning concept.
+
+For our decision tree classifier we can once again utilize a feature of the C5.0 package. To do so, we simply need to pass an additional parameter to our model building function. A value of 10 is provided for trials. This is a widely accepted standard and is a good starting point:
+
+```{r}
+credit_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10)
+credit_boost10
+```
+
+Let's summarize our new model:
+
+```{r}
+summary(credit_boost10)
+credit_boost_pred10 <- predict(credit_boost10, credit_test)
+```
+
+On the training data with our boosted model, we can see that the overall error rate reduced from 14.8% to 3.8% with a total of only 34 samples incorrectly classified. Additionally, the tree size shrunk from 57 to 47.5.
+
+Now that we have our boosted model, let's see how it performs on unseen data:
+
+```{r}
+CrossTable(credit_test$default, credit_boost_pred10, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+Overall, we see that the error rate declined quite sharply to 18%, a substantial gain. However, the the boosted model still had difficulty predicting actual defaults.
+
+Let's try a slightly larger number of trials to see if there is anything that can be gained further:
+
+```{r}
+credit_boost12 <- C5.0(credit_train[-17], credit_train$default, trials = 12)
+credit_boost12
+credit_boost_pred12 <- predict(credit_boost12, credit_test)
+CrossTable(credit_test$default, credit_boost_pred12, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+From the results, we see that our tree size once again shrunk (45.9) and our new model actually did even worse overall. 
+
+Not only did increasing the trials slightly produce a less successful model, there is also the computational cost to consider. Building more trees increases the amount of computing resources required. If we simply continued increasing our number of trials/trees we would start seeing massive real-world performance drop-offs and potentially less accurate models.
+
+Another method for improving the performance of decision trees is to assign a penalty for certain types of incorrect decisions. This discourages the tree from making such decisions and is once gain built into the C5.0 algorithm.
+
+First, we need to create a matrix (known as a cost matrix) that specifies how much costlier each error is relative to other predictions.
+
+```{r}
+matrix_dimensions <- list(c("no", "yes"), c("no", "yes"))
+names(matrix_dimensions) <- c("predicted", "actual")
+matrix_dimensions
+```
+
+This creates a two-dimensional matrix with predicted and actual values. We will supply four possible values to the matrix in the order of: predicted no - acutal no, predicted yes - actual no, predicted no - actual yes, predicted yes - actual no.
+
+```{r}
+error_cost <- matrix(c(0, 1, 4, 0), nrow = 2, dimnames = matrix_dimensions)
+error_cost
+```
+
+The highest penalty is for predicting no default when there actually was a default (4 - false negative). There is also a small penalty for predicting a default where there was none (1 - false positive).
+
+Let's see how adjusting for errors changes our results:
+
+```{r}
+credit_cost <- C5.0(credit_train[-17], credit_train$default, costs = error_cost)
+credit_cost_pred <- predict(credit_cost, credit_test)
+CrossTable(credit_test$default, credit_cost_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+The most interesting change to notice here is that although our error rate increased (37%) the types of errors and mistakes are different. This model was able to catch 26 of the total 33 defaults, meaning fewer false negatives. Since this is the most important result, it may be worth it to consider the trade-offs in overall performance. 
+
+In the interest of curiosity, let's see what happens if we adjust our cost matrix slightly:
+
+```{r}
+error_cost <- matrix(c(0, 1, 2, 0), nrow = 2, dimnames = matrix_dimensions)
+credit_cost <- C5.0(credit_train[-17], credit_train$default, costs = error_cost)
+credit_cost_pred <- predict(credit_cost, credit_test)
+CrossTable(credit_test$default, credit_cost_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+Here we see a decline in the overall error rate (30%) but now have more false negatives than using our previous cost matrix. This seems to be a largely ineffective change.
+
+Finally, let's see the results if we boost our model and apply our most effective cost matrix:
+
+```{r}
+error_cost <- matrix(c(0, 1, 4, 0), nrow = 2, dimnames = matrix_dimensions)
+credit_cost_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10, costs = error_cost)
+credit_cost_pred_boost10 <- predict(credit_cost_boost10, credit_test)
+CrossTable(credit_test$default, credit_cost_pred_boost10, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+Overall this model did not produce anything positive in any particular direction.
 
 ## Conclusion
 
