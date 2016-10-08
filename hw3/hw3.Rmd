@@ -224,7 +224,20 @@ credit_cost_pred_boost10 <- predict(credit_cost_boost10, credit_test)
 CrossTable(credit_test$default, credit_cost_pred_boost10, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
 ```
 
-Overall this model did not produce anything positive in any particular direction.
+Overall this model did not produce anything positive in any particular direction. Perhaps this is because, even though our boosted model (with 10 trails) performed best of all models so far, assigning a cost matrix interferes or even overfits the model too much.
+
+Although the C5.0 algorithm produced results several models that performed very well against unseen data, it is not the only method of decision tree classification available through different R packages. The ctree method (available as prt of the party package) utilizes a different technique for building decision tree classifiers. 
+
+The ctree method is used to build condition inference decision trees. Conditional inference trees differ from the type of tree we have been building.
+
+Conditional inference trees utilize non-parametric tests as splitting criteria, corrected for multiple tests to avoid overfitting. This approach results in unbiased predictor selection and does not require pruning.
+
+```{r}
+library(party)
+ctree_obj <- ctree(default ~ ., data = credit)
+ctree_obj
+plot(ctree_obj)
+```
 
 ## Conclusion
 

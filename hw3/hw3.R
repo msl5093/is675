@@ -52,12 +52,24 @@ credit_cost <- C5.0(credit_train[-17], credit_train$default, costs = error_cost)
 credit_cost_pred <- predict(credit_cost, credit_test)
 CrossTable(credit_test$default, credit_cost_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
 
-# ctree ()
-# Statistics-based approach that uses non-parametric tests as splitting criteria, 
-# corrected for multiple testing to avoid overfitting. 
-# This approach results in unbiased predictor selection and does not require pruning.
-library(party)
+credit_boost12 <- C5.0(credit_train[-17], credit_train$default, trials = 12)
+credit_boost12
+credit_boost_pred12 <- predict(credit_boost12, credit_test)
+CrossTable(credit_test$default, credit_boost_pred12, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
 
+error_cost <- matrix(c(0, 1, 2, 0), nrow = 2, dimnames = matrix_dimensions)
+credit_cost <- C5.0(credit_train[-17], credit_train$default, costs = error_cost)
+credit_cost_pred <- predict(credit_cost, credit_test)
+CrossTable(credit_test$default, credit_cost_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+
+error_cost <- matrix(c(0, 1, 4, 0), nrow = 2, dimnames = matrix_dimensions)
+credit_cost_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10, costs = error_cost)
+credit_cost_pred_boost10 <- predict(credit_cost_boost10, credit_test)
+CrossTable(credit_test$default, credit_cost_pred_boost10, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+
+
+# ctree()
+library(party)
 ctree_obj <- ctree(default ~ ., data = credit)
 ctree_obj
 plot(ctree_obj)
