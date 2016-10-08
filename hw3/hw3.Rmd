@@ -230,7 +230,7 @@ Although the C5.0 algorithm produced results several models that performed very 
 
 The ctree method is used to build condition inference decision trees. Conditional inference trees differ from the type of tree we have been building.
 
-Conditional inference trees utilize non-parametric tests as splitting criteria, corrected for multiple tests to avoid overfitting. This approach results in unbiased predictor selection and does not require pruning.
+Conditional inference trees utilize non-parametric tests as splitting criteria, corrected for multiple tests to avoid overfitting. This approach results in unbiased predictor selection and does not require pruning. The C5.0 algorithm splits features based on information gain (as previously discussed); the ctree algorithm chooses splits based on significance tests.
 
 ```{r}
 library(party)
@@ -239,6 +239,24 @@ ctree_obj
 plot(ctree_obj)
 ```
 
+From the above plot, we can see that the conditional inference tree still splits in similar ways to the C5.0 trees above; however, the plot presents us with 10 terminal nodes as seen in the output description for the object itself. Each of these terminal nodes is a graph which displays how many observations fall under our yes/no values using the splits in the connected branch of the tree. Let's see how much more effective our ctree model is against unseen data:
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample, ]
+credit_test  <- credit[-train_sample, ]
+ctree_model <- ctree(default ~ ., data = credit_train)
+ctree_predict <- predict(ctree_model, credit_test)
+CrossTable(credit_test$default, ctree_predict, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+Our overall error rate using ctree modeling is a somewhat passable 27%, which we were able to achieve using C5.0 and even improve using adaptive boosting. However, once again this new model did a very poor job at identifying actual defaults.
+
 ## Conclusion
+
+Decision tree classifiers are powerful, and easily interpreted, techniques for creating predictive models. As we can see from our assessment above, we were able to achieve a few different models which performed very well; however, in very different ways. Using the C5.0 algorithm we were able to add boosting trails which improved our overall error rate by reducing it to below 20% against unseen data. Despite this impressive error rate, we were still deficient at predicting actual defaults. 
+
+By imposing penalties for incorrect decisions using a cost matrix, we were able to catch nearly all actual defaults; however, we saw our overall error rate increase and the model produced more false positives. Either of these models can be considered successful and would likely do well in a real-world application. Which model to use would come down to whatever the user prioritizes.
 
 [R Source](www.rstudio.com) 
