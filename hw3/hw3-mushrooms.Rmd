@@ -46,13 +46,63 @@ The split between poisonous and non-poisonous is fairly evenly distributed. One 
 
 ## Train Model
 
+To train our rule classifier we will be using an R based implementation of simple rule classifier. The OneR() algorithm found in the RWeka package implements a simple classification algorithm that generates one rule for each predictor in the data, then selects the rule with the smallest total error:
 
+To utilize the OneR() method, we will pass to it our target feature and all the covariates found in the data set, and finally specify our mushrooms object as the data set:
+
+```{r}
+library(RWeka)
+mushroom_1R <- OneR(type ~ ., data = mushrooms)
+mushroom_1R
+```
+
+From the output above, we can see that our classifier provides a class value for our target feature based on each of the predictors in the data set. 
 
 ## Evaluating Model Performance
 
+After outputting our model, we can also see that the classifier predicted 8004/8124 instances correctly. Let's examine the result in mor detail:
+
+```{r}
+summary(mushroom_1R)
+```
+
+From the confusion matrix, it looks like our model primarily had difficulty correctly classifying poisonous mushrooms as opposed to non-poisonous ones, a costly mistake.
+
+Next we will see if we can improve our model to better catch such errors.
+
 ## Improving Model Performance
+
+Also included in the RWeka package is another rule learner classifier, JRip() which is based on the RIPPER rule learning algorithm. The RIPPER algorithm is itself an improvement on the IREP (Incremental Reduced Error Pruning) algorithm, an algorithm that applies pre and post-pruning methods that grow very complex rules and prune them before separating from the fill data set.
+
+Fortunately, we can implement this functionality through one line utilizing the JRip() method:
+
+```{r}
+mushroom_JRip <- JRip(type ~ ., data = mushrooms)
+mushroom_JRip
+```
+
+We can see that our classifier learned a total of nine rules from the data set. Each rule is simple to read and understand, a powerful feature of rule based learners:
+
+```{r}
+summary(mushroom_JRip)
+```
+
+Through a summary of our model, we can see that our rule learner using RIPPER was quite successful, as it correctly classified all 8,214 instances in the data set.
+
+For comparison's sake, let's see how an implementation of the C5.0 decision tree classifier would handle this same data set to illustrate the differences between decision tree versus rule based classifiers:
+
+```{r}
+library(C50)
+mushroom_c5rules <- C5.0(type ~ odor + gill_size, data = mushrooms, rules = TRUE)
+summary(mushroom_c5rules)
+```
+
+This model proved quite effective, with an error rate of only 1.4%! However, it looks like this model also had difficulty in that it misclassified 120 poisonous mushrooms as edible. Through applying a C5.0 based decision tree classifier to the same data set, we can see how much more effective rule based learners can be in dealing with certain data sets.
 
 ## Conclusion
 
+Rule based classifiers are simple, yet effective classifiers that can discover extremely accurate rules even when given large and diverse data sets. The OneR() classifier used one rule for each of the predictors in the data set and was able to achieve 99% accuracy. The RIPPER based classifier learned a total of 9 rules from the data set, and was able to achieve 100& accuracy. 
 
-[R Source](www.rstudio.com) 
+One important distinction with rule based classifiers over decision tree classifiers is the difference between their underlying concepts: separate and conquer versus divide and conquer. When decision trees split on features, they essentially remove the feature from consideration in the rule. Rule learner classifiers can make decisions about a feature, but not completely remove the feature from the model, and can even revisit the feature in contruction of its rules.
+
+[R Source](hw3-mushrooms.R) 

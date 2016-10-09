@@ -259,4 +259,4 @@ Decision tree classifiers are powerful, and easily interpreted, techniques for c
 
 By imposing penalties for incorrect decisions using a cost matrix, we were able to catch nearly all actual defaults; however, we saw our overall error rate increase and the model produced more false positives. Either of these models can be considered successful and would likely do well in a real-world application. Which model to use would come down to whatever the user prioritizes.
 
-[R Source](www.rstudio.com) 
+[R Source](hw3-credit.R) 
