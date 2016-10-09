@@ -1,0 +1,58 @@
+---
+title: "IS675 HW3 - Mushrooms"
+author: "Mike Lehman"
+date: "October 6, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to apply classification rules to a set of data to determine the value of a target feature. If decision trees are known as divide and conquer methods (recursively splittling/partitioning a data set into continually smaller sets), rule based classifiers are known as a separate and conquer heuristic. By separate and conquer, we mean to identify a rule that covers a subset of the data, then separating this partition from the rest of the data set.
+
+In this assessment we will apply a rule based classifier to determine whether a wild mushroom species is poisonous given a finite set of characteristics. 
+
+## Data Collection and Preparation
+
+The original data set for our assessment can be found at the UCI machine learning data repository: [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Mushroom). At this location you will find the original raw data at the link titled: "Data Folder".
+
+Inside the web directory, the file: agaricus-lepiota.data contains a comma-separated file with single characters that represent the data we will use for our assessment. For example, the first few characters in the first line of agaricus-lepiota.data are as follows: "p","x","s". In our data set, these same values are as follows: "poisonous","convex","smooth".
+
+The entire list of attribute value pairs can be found in detail in the file: agaricus-lepiota.names in the same directory.
+
+We will begin by reading the data into an R data frame from our modified .csv file:
+
+```{r}
+mushrooms <- read.csv("mushrooms.csv", stringsAsFactors = TRUE)
+str(mushrooms)
+```
+
+After taking an exploratory look at the data, we can see that although the orginal source lists two levels for the feature veil_type, we can see that our data contains only one value. This was likely a data entry/recording issue and thus we need to remove this feature from our data set as it would likely lead to our rule classifier making incorrect decisions:
+
+```{r}
+mushrooms$veil_type <- NULL
+```
+
+The use of the NULL feature of R allows us to simply eliminate this feature from the data set. Next we will take a look at the distribution of our target feature to see what we are dealing with:
+
+```{r}
+table(mushrooms$type)
+```
+
+The split between poisonous and non-poisonous is fairly evenly distributed. One important distinction to note here is that before moving forward, we must consider this set of 8,214 samples to be an exhaustive list of all the wild mushrooms in the world. We cannot confidently say that this model will translate well to any unknown mushrooms that may have a different set of characterisitcs than those captured here.
+
+## Train Model
+
+
+
+## Evaluating Model Performance
+
+## Improving Model Performance
+
+## Conclusion
+
+
+[R Source](www.rstudio.com) 

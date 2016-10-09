@@ -1,5 +1,5 @@
 ---
-title: "IS675 HW2"
+title: "IS675 HW3 - German Credit"
 author: "Mike Lehman"
 date: "October 6, 2016"
 output: html_document
