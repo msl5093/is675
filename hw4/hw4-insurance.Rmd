@@ -1,0 +1,122 @@
+---
+title: "IS675 HW4 - Insurance"
+author: "Mike Lehman"
+date: "October 12, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to predict medical insurance expenditures for certain demographics of a population based on a number of contributing factors. To accomplish this task, we will apply a linear regression model which attempts to predict a dependent variable's value (expenses) based on a number of individual independent predictor variables. Specifically, we will be building a multiple linear regression model.
+
+## Data Collection and Preparation
+
+The data for this assessment can be found [here](http://zaad2.umbc.edu/class/675/Machine%20Learning%20with%20R%20-%202nd.zip). At this directory is a .zip file of data taken from the website of the publisher of the text:"Machine Learning with R", Packy Publishing.
+
+In this .zip file there is a folder, Chapter 6, which contains the .csv file: insurance.csv. This is the source file for the data that will be used for this assessment.
+
+Insurance.csv contains seven total variables, including integer variables age and number of children as well as a numeric variable for body mass index. Additionally, the data contain several factor variables for sex, smoker, and geographic region.
+
+We'll begin by reading the data into an R data frame from the .csv:
+
+```{r}
+insurance <- read.csv("insurance.csv", stringsAsFactors = TRUE)
+str(insurance)
+```
+
+We can set stringsAsFactos to TRUE as all of our categorical variables are indeed factors.
+
+Next, we'll examine our target feature (dependent variable) and check to see how the data is distributed:
+
+```{r}
+summary(insurance$expenses)
+hist(insurance$expenses)
+```
+
+Based on the histogram, we can see that the values for expenses are not evenly distributed. The data show a right skew as most of the values for expenses occur below 20,000. Typically a distribution like this poses a problem for a linear regression model and is worth making note of for later when evaluating the model.
+
+There is an additional preparation step we must conduct prior to building our model. Regression models require that all features being assessed be numeric, and our data contain several categorical features. Let's begin by taking a closer look at the region variable:
+
+```{r}
+table(insurance$region)
+```
+
+The values appear to be evenly distributed across the four possible categories. This is another item to remember for later as we assess how the model handles such features.
+
+Before we construct our model, it is often helpful to look at the correlation of the independent variables to the dependent feature. To do so, we will apply the cor() R function to our data in order to construct a correlation matrix:
+
+```{r}
+cor(insurance[c("age", "bmi", "children", "expenses")])
+```
+
+Positive correlations are listed in the above matrix as positive numbers, and negative correlations with negative numbers. The values we are interested in are represented in the first three rows in the last column of the matrix. None of the features have a strong correlation; however, age and bmi have some noticable positive correlation. 
+
+Additionally, we can visualize these relationships by constructing a scatterplot matrix:
+
+```{r}
+pairs(insurance[c("age", "bmi", "children", "expenses")])
+```
+
+In the above scatterplot matrix, the intersection of each row and column contains a scatterplot for the variables in that row and column.
+
+The most noticable pattern here, is that BMI and expenses seems to have a somewhat linear correlation. Also, age and expenses exhibit a pattern which shows three relatively straight lines for the relationship.
+
+Through use of the psych R library, we can build an even more informative scatterplot matrix for our features:
+
+```{r}
+# use psych library for a more informative scatterplot matrix
+library(psych)
+pairs.panels(insurance[c("age", "bmi", "children", "expenses")])
+```
+
+Along the diaonal we see histograms for the distribution of the values for each feature. Above the diagonal is a correlation matix for each row by column, and below the diagonal are enhanced scatterplots for each of the relationships by row and column. In each of the scatterplots there are now correlation ellipses which show correlation of the variables based on the size of the oval around the center dot which contains the mean value for the feature. The more this oval is stretched, the stronger the correlation.
+
+Additionally, the scatterplots now display a loess curve which indicates the general relationship between the x and y axis variables. The loess curve for age and BMI gradually slopes up, which implies that BMI increases with age. 
+
+These enhanced scatterplots can provide some additional, useful correlation insights into the feature relationships.
+
+## Train Model
+
+Building our linear regression model is fairly straighforward in R. To do so, we simply call the lm() function and pass our data and features into the function:
+
+```{r}
+ins_model <- lm(expenses ~ ., data = insurance)
+```
+
+The first value passed is the dependent feature we are attempting to model, followed by a tilde and a list of each independent feature, separated by '+' signs. Since we are including all of the features, we can simply provide the '.' character after the tilde. This tells the function to take all independent features from the data set. Lastly, we provide the data set.
+
+Now that we have our model, let's examine the results by passing the model to the R interpreter:
+
+```{r}
+ins_model
+```
+
+The output shows the estimated beta coefficients for our model. Basically, these values show that for every one unit increase in the feature listed, we can expect an increase or decrease in the amount specified for the dependent feature, assuming all other values are constant.
+
+Our model was also able to handle the non-numeric features by dummy coding the values and creating variables to stand in for those. For example, sex is a factor with possible values of male or female. The model assigned a value of 1 for male and 0 for female. Similar dummy coding was performed on the region feature and smoker. 
+
+The model leaves one category (value) out to serve as a referenece and interprets the remaining features relative to those that are left out. For example, smoker - no, sex - female, and region - northeast are left out, meaning female smokers in the northeast are the reference group. 
+
+## Evaluating Model Performance
+
+To evaluate the performance of our model, we simply need to call the summary() function and pass our model to the function:
+
+```{r}
+summary(ins_model)
+```
+
+In the resulting output we can parse these details for the important values that indicate the strength of our model.
+
+
+
+## Improving Model Performance
+
+
+## Conclusion
+
+
+[R Source](hw3-credit.R) 
