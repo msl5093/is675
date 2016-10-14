@@ -1,0 +1,28 @@
+---
+title: "IS675 HW4 - Credit"
+author: "Mike Lehman"
+date: "October 14, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+
+
+## Data Collection and Preparation
+
+## Train Model
+
+## Evaluating Model Performance
+
+## Improving Model Performance
+
+
+## Conclusion
+
+
+[R Source]() 

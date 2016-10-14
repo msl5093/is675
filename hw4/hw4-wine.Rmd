@@ -1,0 +1,167 @@
+---
+title: "IS675 HW4 - Insurance"
+author: "Mike Lehman"
+date: "October 12, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to predict wine quality based on a number of independent features using two different types of decision trees: regression and model trees. Regression trees are decision trees built to handle numeric values, unlike decision tree classifiers which are better suited to categorical inputs. However, decision tree classifiers can handle numeric inputs, but where regression trees differ, is that regression trees use standard deviation reduction to assess homogeneity as a way to choose a feature split. 
+
+The strength of regression trees over other regression models, such as linear regressions, is that regression trees are better suited for data sets with many features as well as those with many complex, non-linear relationships.
+
+Similarly, model trees are decision trees suited for numeric predictions that grow a multiple linear regression model at each of the leaf nodes of the tree. The linear model at each node contains a multiple linear regression model for the features split to reach that leaf node.
+
+## Data Collection and Preparation
+
+The original data for this assessment can be found at the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Wine) under the Wine date set. Inside the data folder, the file wines.data contains the original data. In this set there are 13 features, all of which are numeric. For our data set we will utilize 12 features, all of which are also numeric with the target feature (quality) treated as a integer in R.
+
+```{r}
+wine <- read.csv("whitewines.csv")
+str(wine)
+```
+
+As we will begin with a regression tree, we must verify the distribution of the target feature as the range of target values can have an impact on the regression model:
+
+```{r}
+hist(wine$quality)
+summary(wine)
+```
+
+The quality feature follows a basic bell-shaped distribution, centering around a value of six. The summary output also shows us that the quality feature does not have a wide distribution. Based on both of these observations we can safely assume the data does not need any further preparation. Additionally, since decision trees adapt well to messy data, there isn't anything else required prior to building the model other than assigning our train and test data sets:
+
+```{r}
+wine_train <- wine[1:3750, ]
+wine_test <- wine[3751:4898, ]
+```
+
+Since the data appears randomly ordered, we can safely assign contiguous row values to our train and test data sets. We use a 75%/25% split for train versus test.
+
+## Train Model
+
+For our regression tree model we can utilize the rpart (recursive partitioning) library's rpart() function. Recursive partitioning simply means dividing the data into smaller subsets by feature selection in the same manner as used with decision tree classifiers.
+
+```{r}
+library(rpart)
+m.rpart <- rpart(quality ~ ., data = wine_train)
+m.rpart
+summary(m.rpart)
+```
+
+From the summary output we can see important details such as mean squared error for each node as well as other details for each of the leaf nodes.
+
+To better assess the model, we can create a visualization using rpart.plot to see how the tree split features in a much easier to understand format:
+
+```{r}
+library(rpart.plot)
+rpart.plot(m.rpart, digits = 3)
+```
+
+The digits parameter rounds off the digits for numeric features. From this visualization we can see how the model split features and which of the leaf nodes represent a percentage of the total.
+
+To improve on this visualization, we can pass more parameters to the rpart.plot() function which provide even more detailed information:
+
+```{r}
+rpart.plot(m.rpart, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+```
+
+Fallen leaves forces all leaf nodes to be aligned at the bottom and type and extra provide additional details. For example we now have a total count of samples in each leaf node instead of just the percentage.
+
+Now we can evaluate this model's performance by making a prediction and seeing what sort of improvements can be made.
+
+## Evaluating Model Performance
+
+To evaluate our regression tree model, we simply use the predict() function and summarize its outputs:
+
+```{r}
+p.rpart <- predict(m.rpart, wine_test)
+summary(p.rpart)
+summary(wine_test$quality)
+```
+
+First, we output the summary of our prediction object. Next we output the summary of the target feature from the test data set.
+
+Based on these outputs, we see that the model is not correctly indentifying the extremes as our prediction model has a much more narrow range and slightly lower mean and median.
+
+To summarize the quality of the model we can look at the results of the correlation of the predicted versus actual values:
+
+```{r}
+cor(p.rpart, wine_test$quality)
+```
+
+The correlation value measures the relationship between the predicted values to the actual values; however, to see how close the predicted values actually were, we need to apply determine the mean absolute error. The mean absolute error shows how far, on average, the predicted value is from the actual value. To do this we can create a custom function with the basic mean absolute error equation and pass our predicted and actual value sets:
+
+```{r}
+MAE <- function(actual, predicted) {
+  mean(abs(actual - predicted))  
+}
+
+MAE(p.rpart, wine_test$quality)
+```
+
+The result of the MAE function suggests that our model's predictions are on average only aout 0.59 away from the actual test values. 
+
+Recall that the quality feature was distrbuted along a basic bell curve, meaning that most values occur along a small range in the middle of all possible values, with only a few outliers. This means that it may be possible that an algorithm that does nothing but predicts the man value for every record may perform equally as well as our model.
+
+To verify this we can first find the mean value of the target feature from the train data set, then pass it and the mean of the target feature from our test data set and compare it to the mean absolute error from our model:
+
+```{r}
+mean(wine_train$quality)
+MAE(5.87, wine_test$quality)
+```
+
+From this we can see that the mean absolute error for predicting only the mean value of the target feature, is greater than that which our model produced.
+
+## Improving Model Performance
+
+Although our model's results are quite good, they are not that much better than simply predicting the mean for all observations. To improve our model, we can instead build a model tree to see how it compares to our regression tree.
+
+Model trees build out multiple linear regression models for each leaf node on the tree it builds, which can be much more powerful for numeric feature prediction than a simple regression tree.
+
+To build a model tree we will make use of the RWeka package's MP5 function:
+
+```{r}
+library(RWeka)
+m.m5p <- M5P(quality ~ ., data = wine_train)
+m.m5p
+```
+
+From the output we can see that the tree made similar splits as our regression tree; however, each leaf node terminates in a linear regression model. The details for each linear model can also be observed. In each model quality we see the coefficient of the independent variable on the dependent variable. Each linear model (a total of 36) contains estiamtes built only from samples that reached that node, so the coefficients are slightly different for each node's linear model.
+
+A summary of our model tree provides basic details:
+
+```{r}
+summary(m.m5p)
+```
+
+To see how our model tree really performs, we will test it on the unseen data in our test data set:
+
+```{r}
+p.m5p <- predict(m.m5p, wine_test)
+summary(p.m5p)
+```
+
+Our model tree has a much greater range of prediction values than our regression tree. A look at the correlation value also shows improvement over our regression tree:
+
+```{r}
+cor(p.m5p, wine_test$quality)
+```
+
+Finally, we will take a look at the mean absolute error to see how much better our model tree is at predicting wine quality:
+
+```{r}
+MAE(wine_test$quality, p.m5p)
+```
+
+Although there is not a significant increase, the mean absolute error of our model tree has gotten closer to zero than the regression tree.
+
+## Conclusion
+
+Using both regression and model trees we were able to predict wine quality based on predictor variables with a reasonable degree of certainy. As the data we worked with were entirely numeric, we were able to take advantage of linear regression modeling and decision tree modeling. Model trees are inherently more powerful as each terminal leaf node results in a complete multiple linear regression model for all features in the branch. 
+
+[R Source]() 

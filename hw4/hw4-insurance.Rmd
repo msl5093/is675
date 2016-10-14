@@ -111,12 +111,62 @@ summary(ins_model)
 
 In the resulting output we can parse these details for the important values that indicate the strength of our model.
 
+First, we can see summary statistics for residuals (differnece between predicted values and actuals). With a max value of 29981.7, this suggests the the model under-predicted expenses by almost $30,000. 
 
+Next we can see the coefficients listed below the residual summary statistics. Examining the p values for the coefficients, we can see that several of the features have a significant impact. Age, BMI and smokeryes all have noticably high p values. The higher a p value, the more likely the feature has some relationship with the dependent variable.
+
+Finally, the R-squared values provide an indicator of overall performance of the model. Similar to the correlation coefficient, the closer the R-squared value to 1, the better the model predicts the target feature. The multiple R-squared for our model at 0.7509 means that our model explans approximately 75% of the variations in expenses. 
+
+Models with muultiple features nearly always explain more variation than those with fewer, so the adjusted R-squared value penalizes models with many features. Our adjusted R-squared is 0.7494. This is useful when comparing performance of models with different numbers of features.
 
 ## Improving Model Performance
 
+Our linear regression model performed quite well. With only a few R functions we were able to make powerful obervations about the data. One key aspect of linear regression models is that they leave feature selection up to the user. Since we have some basic a priori knowledge about the data, this means that we can improve our model by engineering feature properties that may help improve our model's performance.
+
+In a linear regression, it is assumed that the relationship between an independent feature and the dependent variable is assumed to be linear; however, this is not always the case. For example, increases in age may not have a constant impact on expenses. As age gets higher the impact on expenses may be exponentially greater than a straight linear pattern.
+
+To add this to our model, we can add a new feature that is our age variable raised to the power of two to represent a non-linear relationship:
+
+```{r}
+insurance$age2 <- insurance$age^2
+```
+
+Looking at our features, there may be other changes we can make to improve our model. For certain numeric variables, it may be the case that the effect on the dependent feature is not cumulative, but rather only has an impact once its value crosses a certain threshold. For example, a lower BMI may have not real impact on expenses; however, a BMI of greater than 30 may have a noticable impact. To model this binary assertion we can create an additional new feature that assigns 1 for BMI over 30 and 0 for BMI under 30:
+
+```{r}
+insurance$bmi30 <- ifelse(insurance$bmi >= 30, 1, 0)
+```
+
+Finally, there are cases where multiple features may have a greater impact on the dependent variable when combined than when considered individually, as is the default case with a linear regression model. For example, having a high BMI and being a smoker may have a significant impact than those two variables considered individually.
+
+To model this interaction we simply pass our bmi30 feature to the lm() function with a '*' and the smoker feature when building the model:
+
+```{r}
+ins_model2 <- lm(expenses ~ age + age2 + children + bmi + sex + bmi30*smoker + region, data = insurance)
+```
+
+Now the we have our transformed model, we can observe the changes and compare it to our base model:
+
+```{r}
+summary(ins_model2)
+```
+
+From the model summary we can see that our new features and our interaction had a significant impact and helped our model's scores improve. Our R-squared and adjust R-squared values are much closer to 1: 0.8664 and 0.8653 respectively. The max value for residuals has also decreased.
+
+Additionally, our squared age feature has a very large p value as well as the bmi30:smokeryes interaction. 
+
+Let's try one additional model. Going back to the beginning of our assessment, recall that the dependent variable (expenses) had an uneven distribution of values. We can apply a logarithmic transformation (with a base value of 10 - a common value) to bring the values closer together to see if this has any impact on our model:
+
+```{r}
+ins_model3 <- lm(log(expenses, base = 10) ~ age + age2 + children + bmi + sex + bmi30*smoker + region, data = insurance)
+summary(ins_model3)
+```
+
+Our feature's p values largely held constant relative to the other models; however, our R-squared values did not score as well. This suggests that the uneven distribution of the dependent variable probably does not have that much of an impact on the model.
 
 ## Conclusion
 
+Using linear regression modeling we were able to predict health insurance expenditures with an 80%+ degree of accuracy. For linear models this is quite good as many models do not achieve numbers this accurate. Of course this was built on a relatively small data set, but our model was still able to identify the strongest correlations between the independent features and the dependent variable.
 
-[R Source](hw3-credit.R) 
+
+[R Source]() 

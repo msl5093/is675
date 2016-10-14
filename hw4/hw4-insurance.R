@@ -42,3 +42,6 @@ insurance$bmi30 <- ifelse(insurance$bmi >= 30, 1, 0)
 
 ins_model2 <- lm(expenses ~ age + age2 + children + bmi + sex + bmi30*smoker + region, data = insurance)
 summary(ins_model2)
+
+ins_model3 <- lm(log(expenses, base = 10) ~ age + age2 + children + bmi + sex + bmi30*smoker + region, data = insurance)
+summary(ins_model3)
