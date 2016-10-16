@@ -11,18 +11,97 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-
+In this short assessment, we will apply a decision tree classifier to a set of consumer credit data to predict the likelihood of a loan default given a set of input parameters. This decision tree classifier will be built using the rprart R library, which will build our decision tree. For comparison's sake, we will validate the results of the rpart classifier against one built using the C5.0 algorithm. Both classifiers use recursive partitioning as part of a divide and conquer strategy and information gain for feature splitting.
 
 ## Data Collection and Preparation
 
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
+
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
+
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:
+
+```{r}
+credit <- read.csv("credit.csv")
+str(credit)
+```
+
+Now that we have our data loaded, we will create train and test data sets for our model. We will be targeting the default feature, and will consider all other features as part of the criteria for classification:
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample, ]
+credit_test  <- credit[-train_sample, ]
+```
+
 ## Train Model
+
+As stated above, we will use the rpart (recursive partitioning) R library to build our model. To do so we will pass the function our target feature with a '.' following the tilde to inform the model that we are considering every feature in the data set:
+
+```{r}
+library(rpart)
+credit_tree <- rpart(default ~ ., data = credit_train)
+```
+
+Taking a quick summary of the model, we can see that our model created a decision tree classifier for our target feature. This is something we can take for granted as part of the rpart library. The rpart function will take our inputs and based on the data type of the target feature, will decide whether to build a classification or regression tree.
+
+Since our target feature is a factor with finite levels:
+
+```{r}
+head(credit$default)
+```
+
+Rpart builds a classification tree. If our target feature had been numeric (continuous) variable, rpart would have built a regression tree.
+
+Since rpart has done the heavy lifting for us, we can now plot the tree as the summary is informative but dense and not easy to comprehend. We will plot the tree using the rpart.plot library. We will pass a few parameters to the plot function. Digits = 4 to limit the amount of characters to display after a decimal, fallen leaves to show all terminal nodes in line at the bottom of the tree and type and extra provide more detailed information in the leaf nodes:
+
+```{r}
+library(rpart.plot)
+rpart.plot(credit_tree, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+```
+
+The results are a simple to understand and interpret decision tree. Now that we have our model, we can run a prediction against the test data to validate:
+
+```{r}
+credit_pred <- predict(credit_tree, credit_test, type="class")
+```
 
 ## Evaluating Model Performance
 
-## Improving Model Performance
+To evaluate the performance of our model, let's create a cross tabulation to compare predicted versus actual results:
 
+```{r}
+library(gmodels)
+CrossTable(credit_test$default, credit_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+As we are evaluating the performance of an rpart classification tree, let's build a model using the C5.0 algorithm to compare results:
+
+```{r}
+library(C50)
+credit_model <- C5.0(credit_train[-17], credit_train$default)
+credit_model
+credit_pred_c50 <- predict(credit_model, credit_test)
+CrossTable(credit_test$default, credit_pred_c50, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('actual default', 'predicted default'))
+```
+
+Looking at the results of both models, the error rate for the rpart tree was 28%, but was only able to identify 11/33 actual loan defaults.
+
+The C5.0 model performed similarly with an error rate of 27%; however, this model was slightly more accurate in catching actual defaults: 14/33.
+
+This is to be expected as both models used the same features and both built classification trees. Additionally, both models are based on similar concepts. Rpart, based on the CART (Classification and Regression Analysis) implementation is very similar to (but different than) C4.5, which is itself the precursor to C5.0, which was used to build our second model.
+
+The primary differences between CART and C5.0, is that CART constructs the tree based on numerical splitting applied recursively to the data but does not offer much in the defense of overfitting and incomplete data.
+
+C4.5 (of which C5.0 is an improvement) goes further by including pruning better handling of incomplete data. The base rpart function constructs the model, but leaves pruning up to the user. This key difference likely explains why our rpart tree did not perform as well against unseen data.
 
 ## Conclusion
 
+The overall performance of our rpart decision tree classifier was quite good. With only minimal effort in data preparation and implementation, we were able to achieve a model with nearly 75% accuracy. Our C5.0 model performed equally well, although both models did a relatively poor job of predicted actual yes values in our target feature. 
 
-[R Source]() 
+To improve our rpart model, we could introduce pruning to correct for overfitting, but C5.0 includes this as part of the base implementation. Additionally, C5.0 includes support for adaptive boosting to grow a number of different trees and evaluating results across the trees to find optimal splits and reduce overfitting.
+
+[R Source](hw4-credit.R) 

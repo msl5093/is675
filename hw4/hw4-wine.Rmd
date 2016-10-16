@@ -1,5 +1,5 @@
 ---
-title: "IS675 HW4 - Insurance"
+title: "IS675 HW4 - Wine"
 author: "Mike Lehman"
 date: "October 12, 2016"
 output: html_document
@@ -164,4 +164,4 @@ Although there is not a significant increase, the mean absolute error of our mod
 
 Using both regression and model trees we were able to predict wine quality based on predictor variables with a reasonable degree of certainy. As the data we worked with were entirely numeric, we were able to take advantage of linear regression modeling and decision tree modeling. Model trees are inherently more powerful as each terminal leaf node results in a complete multiple linear regression model for all features in the branch. 
 
-[R Source]() 
+[R Source](hw4-wine.R) 

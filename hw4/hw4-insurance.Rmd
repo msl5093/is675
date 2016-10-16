@@ -168,5 +168,4 @@ Our feature's p values largely held constant relative to the other models; howev
 
 Using linear regression modeling we were able to predict health insurance expenditures with an 80%+ degree of accuracy. For linear models this is quite good as many models do not achieve numbers this accurate. Of course this was built on a relatively small data set, but our model was still able to identify the strongest correlations between the independent features and the dependent variable.
 
-
-[R Source]() 
+[R Source](hw4-insurance.R) 
