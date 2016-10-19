@@ -1,7 +1,7 @@
 ---
-title: "IS675 HW2"
+title: "IS675 HW5"
 author: "Mike Lehman"
-date: "September 21, 2016"
+date: "October 17, 2016"
 output: html_document
 ---
 
@@ -11,42 +11,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-This is where the Introduction text goes. 
+
 
 ## Data Collection and Preparation
 
-This is where stuff about collecting, cleaning, and preparing data goes.
+## Train Model
 
-R code chunk below:
+## Evaluating Model Performance
 
-```{r cars}
-summary(cars)
-```
-
-### Header 3
-
-### Header 3
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-##
-
-##
-
-##
-
-## Model Performance
-
-### Baseline
-
-### Improving Performance
+## Improving Model Performance
 
 ## Conclusion
 
-[R Source](www.rstudio.com) 
+
+[R Source](hw5-conrete.R) 
