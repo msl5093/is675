@@ -11,11 +11,56 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
+The goal of this assessment is to apply an Artificial Neural Network (ANN) model to a set a numeric data to predict the value of an additional numeric parameter. More generally, ANNs can be used in multiple machine learning environments and use cases. ANNs can be used in classification tasks as well predciting both linear and non-linear continuous variables. In fact, ANNs are well suited to working with highly non-linear relationships which we will soon see.
 
+For this assessment we will be using an ANN to assess the compressive strength of concrete given a discrete set of numeric input variables. 
 
 ## Data Collection and Preparation
 
+The original concrete data set is available at the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Concrete+Compressive+Strength). At this location follow the Data Folder link to find the original data set. The original data set is an .xslx file that contains detailed column names as to what the numbers in the table represent.
+
+For example, we can see nine total features, including the one for which we are testing, Concrete compressive strength which is expressed in units of megapascals (MPa). Reading right-to-left starting with the compressive strength column, the next variable is age, easily understood in terms of days. 
+
+Next, we can see that all other features are expressed in units of kilograms per cubic meter. The rest of the features are ingredients found in the concrete mixture: cement, blast furnace slag, fly ash, water, superplasticizer, coarse aggregate, and fine aggregate. It is important to acquire this domain specific knowledge about the data, as the cleansed data set we will use provides only name descriptions with numeric values and not any units of measure.
+
+It is also important to note, based on the readme file which is found in the same directory of the .xlsx file, that the values in the data set are in raw form and not scaled. This will play an important role in our data preparation as we look towards building our ANN.
+
+We'll begin by reading the cleansed data from the concrete.csv file:
+
+```{r}
+concrete <- read.csv("concrete.csv")
+str(concrete)
+```
+
+We can see the same values as those found in the original data set, but with brief names that correspond to the columns seen in the original data set.
+
+The first problem we encounter is that many of the variables have large ranges in values:
+
+```{r}
+summary(concrete)
+```
+
+ANN's work best when input values are sclaed to a small range, typically around zero. We can scale our data by creating a custom normalize functions which applies a basic min-max normalization:
+
+```{r}
+normalize <- function(x) { 
+  return((x - min(x)) / (max(x) - min(x)))
+}
+```
+
+Now that we have our custom function, we can apply it to every value in each column of the data frame:
+
+```{r}
+concrete_norm <- as.data.frame(lapply(concrete, normalize))
+summary(concrete_norm$strength)
+summary(concrete$strength)
+```
+
+The summary differences between the two data sets' taget variables show how the range has been reduced to between zero and one.
+
 ## Train Model
+
+
 
 ## Evaluating Model Performance
 

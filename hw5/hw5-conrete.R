@@ -1,6 +1,7 @@
 # Data Collection and Preparation
 concrete <- read.csv("concrete.csv")
 str(concrete)
+summary(concrete)
 
 # normalize numeric features to shrink range of values
 normalize <- function(x) { 
@@ -43,3 +44,13 @@ model_results2 <- compute(concrete_model2, concrete_test[1:8])
 predicted_strength2 <- model_results2$net.result
 cor(predicted_strength2, concrete_test$strength)
 
+# additional improvements -> add more hidden nodes (10)
+set.seed(12345)
+concrete_model3 <- neuralnet(strength ~ cement + slag +
+                               ash + water + superplastic + 
+                               coarseagg + fineagg + age,
+                             data = concrete_train, hidden = 10)
+plot(concrete_model3)
+model_results3 <- compute(concrete_model3, concrete_test[1:8])
+predicted_strength3 <- model_results3$net.result
+cor(predicted_strength3, concrete_test$strength)
