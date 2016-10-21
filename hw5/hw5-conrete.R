@@ -23,7 +23,7 @@ library(neuralnet)
 set.seed(12345)
 concrete_model <- neuralnet(formula = strength ~ cement + slag + ash + water + superplastic
                             + coarseagg + fineagg + age, data = concrete_train)
-plot(concrete_model)
+plot(concrete_model, rep="best")
 
 # Evaluating Model Performance
 model_results <- compute(concrete_model, concrete_test[1:8])

@@ -56,11 +56,47 @@ summary(concrete_norm$strength)
 summary(concrete$strength)
 ```
 
-The summary differences between the two data sets' taget variables show how the range has been reduced to between zero and one.
+The summary differences between the two data sets' taget variables show how the range has been reduced to between zero and one. This will make our ANN much more accurate with regards to predicting the target feature and dealing with the inputs.
+
+Finally, we will subset the data into train and test sets by a 75/25 split. Based on the description of the original data set, the data are already randomly ordered, so we can simply subset by current rows:
+
+```{r}
+concrete_train <- concrete_norm[1:773, ]
+concrete_test <- concrete_norm[774:1030, ]
+```
 
 ## Train Model
 
+To train our model we will make use of the neuralnet R library which allows for creation of ANNs in a similar method to constructing other machine learning objects such as linear and non-linear regressions and regression trees.
 
+We will also set a seed value so that our results can be reproduced as much as possible:
+
+```{r}
+library(neuralnet)
+set.seed(12345)
+```
+
+To build our model we will pass our features (dependent and independent) to the neuralnet function and specify our train data set. 
+
+```{r}
+concrete_model <- neuralnet(formula = strength ~ cement + slag + ash + water + superplastic
+                            + coarseagg + fineagg + age, data = concrete_train)
+plot(concrete_model, rep="best")
+```
+
+The plot of our ANN model shows that we have an ANN with an input layer, one hidden layer (with one hidden), and an output layer. In the input layer there are eight nodes, one for each independent feature in the data set. In the hidden layer, there is a single node. 
+
+When we created our ANN model, we did not specify a number of hidden nodes, so the neuralnet() function defaulted to 1. This will be covered in-depth in the next section as we assess and evaluate model performance.
+
+Discuss activation functions...
+
+The output layer contains a single node with our dependent target feature. 
+
+There are a number of other details here that provide additional information about our ANN model. First, observe the line that connects each input feature node to the hidden layer node. Along these lines are various numbers. These numbers represent the weights for each of the connections.
+
+In short, the weight of a connection between the input and hidden layers in an ANN is a function of backpropagation. Before discussing backpropagation in detail, the weight of a feature can be considered as a modifier for that feature. The given value for the input feature is multiplied by the weight. The weighted inputs are then used in conjunction with the hidden node's activation functions to determine the output value.
+
+Backpropagation 
 
 ## Evaluating Model Performance
 
