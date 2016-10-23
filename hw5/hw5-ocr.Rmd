@@ -1,0 +1,58 @@
+---
+title: "HW5 - OCR"
+author: "Mike Lehman"
+date: "October 17, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+A Support Vector Machine is a model that creates an imagined surface with a theoretical boundry between plotted data points that represent feature values. The ultimate goal is to create a flat boundary (hyperplane) that divides the space to create homogenous partitions of data. SVMs can be considered a combination of nearest neighbors classifiers and linear regression models.
+
+The goal of this assessment is to letter characters based on the placement of pixels within an image. To accomplish this task we will apply a Support Vector Machine implementation.
+
+## Data Collection and Preparation
+
+The original data set for this assessment can be found at the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Letter+Recognition). At this URL there is a data folder link that contains the relevant files.
+
+The file letter-recognition.data contains 20,000 samples with 17 total attributes. 16 of the 17 attributes are numeric values and refer to the spatial position of a box containing a pixel within a larger container that houses the letter. The non-numeric attribute is the target feature, an English letter from A to Z.
+
+The data set we will use for this assessment is nearly identical to the original sample found at the UCI repository.
+
+SVMs require that all features be numeric and that the range be small in scope. All of our input features are already numeric; however, many contain a large range of values. The R package we will be using for the assessment takes care of scaling the data for us, but it is important to note that such a preparatory step is needed.
+
+```{r}
+letters <- read.csv("letterdata.csv")
+str(letters)
+```
+
+The data are already in random order, so we may simply create our train and test data sets by separating based on rows:
+
+```{r}
+letters_train <- letters[1:16000, ]
+letters_test  <- letters[16001:20000, ]
+```
+
+## Train Model
+
+To train our model we will make use of the kernlab R package and its ksvm() function. 
+
+```{r}
+library(kernlab)
+letter_classifier <- ksvm(letter ~ ., data = letters_train, kernel = "vanilladot")
+letter_classifier
+```
+
+## Evaluating Model Performance
+
+## Improving Model Performance
+
+## Conclusion
+
+
+
+[R Source](hw5-ocr.R) 
