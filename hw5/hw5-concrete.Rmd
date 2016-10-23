@@ -88,21 +88,117 @@ The plot of our ANN model shows that we have an ANN with an input layer, one hid
 
 When we created our ANN model, we did not specify a number of hidden nodes, so the neuralnet() function defaulted to 1. This will be covered in-depth in the next section as we assess and evaluate model performance.
 
-Discuss activation functions...
-
 The output layer contains a single node with our dependent target feature. 
 
 There are a number of other details here that provide additional information about our ANN model. First, observe the line that connects each input feature node to the hidden layer node. Along these lines are various numbers. These numbers represent the weights for each of the connections.
 
 In short, the weight of a connection between the input and hidden layers in an ANN is a function of backpropagation. Before discussing backpropagation in detail, the weight of a feature can be considered as a modifier for that feature. The given value for the input feature is multiplied by the weight. The weighted inputs are then used in conjunction with the hidden node's activation functions to determine the output value.
 
-Backpropagation 
+Backpropagation refers to a technique similar to finding the gradient of a linear model. The ANN determines what it should have produced as a response and uses the difference between the desired and actual response to adjust the weights and threshold values of each hidden layer neuron so that next time the error in response will be less for the same inputs. 
+
+The backpropagation process continues for each set of inputs and corresponding outputs so long as the total errors or responses exceed a specified level or until there are no measureable errors. 
+
+Since we have covered ANN layers and the process of backpropagation, it is also worthwhile to take time to consider other features of ANNs, such as bias and activation functions.
+
+Looking at the plot of our model, we can see two nodes outside the flow of the ANN with 1's and lines pointing toward the hidden and output neurons with values along the lines. These are the bias terms and they are numeric constants that allow the value of the indicated nodes to be shifted upward or downward. The idea is similar to the intercept of a linear equation. These constant values are not impacted by the values passed from the previous layer. This allows us to better match models where the activation functions may not perfectly model the relationships within the data.
+
+In the same way we would want to move the line in a linear model vertically along the y-axis, we can adjust the position of our activation function to better model the actual relationships in the data. Going back to linear models, the line of best fit may not always pass through x = 0, y = 0, and bias terms in ANNs help to model similar differences.
+
+Activation functions are the mechanisms that determine how information passes throughout the ANN at each neuron. These functions take the input values and transform them based on a set of criteria and determine the optimal output value. There are a number of different types of activation functions, the selection of which can bias ANNs in certain ways.
+
+The most common activation function is the sigmoid activation function which allows for non-binary outputs where the output value can fall anywhere in the range from 0 to 1. This can cause problems where there is a dynamic range of input values with many very high or low values resulting in a narrow output between 0 and 1. This is referred to as the squashing problem and is shared by many different ANN function types.
+
+Recall that prior to training our model we normalized our numeric values such that they range between 0 and 1. This is the solution to the squashing problem, to limit the range of input values such that the resulting output does not skew predicted values.
 
 ## Evaluating Model Performance
 
+To evalute our model's performance, we will create a new object to hold the results of passing our model and the entire test data set, minus the target feature: strength.
+
+This creates a neuralnet() list object that contains two items: neurons (another list) and a numeric set - net.result.
+
+```{r}
+model_results <- compute(concrete_model, concrete_test[1:8])
+predicted_strength <- model_results$net.result
+```
+
+The predicted_strength object contains the net.result values from our model results object. To assess performance we will pass this set of values to R's cor() function along with out test data set's target feature values to determine the degree of correlation between our predicted and actual values:
+
+```{r}
+cor(predicted_strength, concrete_test$strength)
+```
+
+The output shows that our correlation value is close to 1. Correlation values close to 1 indicate a strong linear relationship, which means that our model is quite successful with only using one hidden node.
+
 ## Improving Model Performance
+
+Since our model performed quite well with using only one hidden node, it is likely that by increasing the number of hidden nodes, that we may be able to achieve a greater correltion value. To do so we will create a second model and first plot the results:
+
+```{r}
+set.seed(12345)
+# create ANN model with 5 hidden neurons
+concrete_model2 <- neuralnet(strength ~ cement + slag +
+                               ash + water + superplastic + 
+                               coarseagg + fineagg + age,
+                             data = concrete_train, hidden = 5)
+plot(concrete_model2, rep="best")
+```
+
+When we created out second model, we only had to pass an additional parameter: hidden, with a value of five to increase the number of hidden nodes in our model.
+
+From the plot, we can see that our sum of squared errors reduced quite a bit compared to the original model, and the number of steps greatly increased, which makes sense given the greater complexity of the model.
+
+To evaluate our results, we will use the same procedure as before:
+
+```{r}
+model_results2 <- compute(concrete_model2, concrete_test[1:8])
+predicted_strength2 <- model_results2$net.result
+cor(predicted_strength2, concrete_test$strength)
+```
+
+Our correlation value moved even closer to 1, meaning that our model is quite close to finding an exact perfect linear pattern to matches our input values to our expected outout values.
+
+Since five hidden nodes improved our model so much, let's see if using ten hidden nodes can get us even closer:
+
+```{r}
+set.seed(12345)
+concrete_model3 <- neuralnet(strength ~ cement + slag +
+                               ash + water + superplastic + 
+                               coarseagg + fineagg + age,
+                             data = concrete_train, hidden = 10)
+plot(concrete_model3, rep="best")
+model_results3 <- compute(concrete_model3, concrete_test[1:8])
+predicted_strength3 <- model_results3$net.result
+cor(predicted_strength3, concrete_test$strength)
+```
+
+Our correlation value did get closer to 1, but only by a smaller amount. Additionally, our sum of squared errors decreased, and interestingly the steps in the ANN decreased. However, our gains were modest and given that this third model is more computationally expensive, it is probably not worth considering the increase in hidden nodes.
+
+For one final improvement, we can increase the not only the number of hidden nodes, but also the number of hidden layers. An ANN model with more than one hidden layer is oftern referred to as a deep learning model. To add a hidden layer we simply pass multiple hidden values to the neuralnet() function, with each value adding a new hidden layer:
+
+```{r}
+set.seed(12345)
+concrete_model4 <- neuralnet(strength ~ cement + slag +
+                               ash + water + superplastic + 
+                               coarseagg + fineagg + age,
+                             data = concrete_train, hidden=c(5,3))
+plot(concrete_model4, rep="best")
+model_results4 <- compute(concrete_model4, concrete_test[1:8])
+predicted_strength4 <- model_results4$net.result
+cor(predicted_strength4, concrete_test$strength)
+```
+
+This fourth model has a similar lower sum of squared erros value and fewer steps; however, the correlation is not a marked improvement over our first model.
 
 ## Conclusion
 
+Artificial neural networks are very powerful "black-box" models for machine learning. ANNs are able to handle tasks for classifications as well as prediction of continuous variables. Although the underlying math can be dense and difficult to parse, various R packages allow for easy construction of ANNs. 
+
+Often linear and logistic (non-linear) regression models are able to match if not exceed the performance of ANNs; however, regression models require much more effort to build and train, whereas ANNs can model linearities and non-linearities automatically, with little up-front effort required.
+
+As we saw with our models, a simple ANN with only one hidden layer containing one hidden node oftern performs quite well. We saw significant performance gains with the addition of four more hidden nodes, but saw only modest improvements when adding more hidden nodes and layers.
+
+In addition to only modest performance gains, adding more hidden nodes and layers can easily lead to overfitting and prevent our model from scaling to unseen data.
+
+With such accuracy easily achieved with only a few R functions, one can see how useful ANNs can be for continuous prediction. Tackling the same problem with a linear or logisitc model would have required much more effort and manual steps.
 
 [R Source](hw5-conrete.R) 

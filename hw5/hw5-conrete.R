@@ -39,7 +39,7 @@ concrete_model2 <- neuralnet(strength ~ cement + slag +
                                ash + water + superplastic + 
                                coarseagg + fineagg + age,
                              data = concrete_train, hidden = 5)
-plot(concrete_model2)
+plot(concrete_model2, rep="best")
 model_results2 <- compute(concrete_model2, concrete_test[1:8])
 predicted_strength2 <- model_results2$net.result
 cor(predicted_strength2, concrete_test$strength)
@@ -50,7 +50,7 @@ concrete_model3 <- neuralnet(strength ~ cement + slag +
                                ash + water + superplastic + 
                                coarseagg + fineagg + age,
                              data = concrete_train, hidden = 10)
-plot(concrete_model3)
+plot(concrete_model3, rep="best")
 model_results3 <- compute(concrete_model3, concrete_test[1:8])
 predicted_strength3 <- model_results3$net.result
 cor(predicted_strength3, concrete_test$strength)
