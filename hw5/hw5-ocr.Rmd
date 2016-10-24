@@ -39,7 +39,9 @@ letters_test  <- letters[16001:20000, ]
 
 ## Train Model
 
-To train our model we will make use of the kernlab R package and its ksvm() function. 
+To train our model we will make use of the kernlab R package and its ksvm() function. All we need to do to create a Support Vector Machine (SVM) model is to pass our target feature and all independent variables, as well as our train data set, and the type of kernel.
+
+For our first model we will apply a linear mapping, specified by the "vanilladot" parameter.
 
 ```{r}
 library(kernlab)
@@ -47,12 +49,74 @@ letter_classifier <- ksvm(letter ~ ., data = letters_train, kernel = "vanilladot
 letter_classifier
 ```
 
+Now the we have our SVM classifier built, we will examine its performance against unseen data.
+
 ## Evaluating Model Performance
+
+```{r}
+letter_predictions <- predict(letter_classifier, letters_test)
+```
+
+To evaluate the performance of our classifier we make use of the predict() R function. To the predict() function we passed our model and our test data set. Note, that we left the type parameter out of the function call. Since type defaults to "response" we need not make any changes as this returns a vector with the predicted letter for that type.
+
+```{r}
+head(letter_predictions)
+table(letter_predictions, letters_test$letter)
+```
+
+The output of head(letter_predictions) shows us the first few predicted letter. Next, we created a table to compare our predicted letters against the actual letters found in the test data set. The diagonal values represent instance where the predicted letter (row) matches the actual letter (column). 
+
+We can see for the most part that our model appears to have performed well, with only a few mistakes present in each row. In order to get a more defined criteria of success, we can create an object that contains only cases where the predicted letter matches the actua letter:
+
+```{r}
+agreement <- letter_predictions == letters_test$letter
+table(agreement)
+```
+
+The agreement object contains a vector of two possible values, either TRUE or FALSE based on whether the letter prediction matches the actual letter in the test data set.
+
+```{r}
+prop.table(table(agreement))
+```
+
+The accuracy of our model is about 84%. This is quite good, but perhaps can be improved upon. Recall that we used a basic linear kernal function. We can likely achieve even better results by using a more complex kernel function.
+
+SVMs seek to find the ideal hyperplane to divide data into homogenous groups. The best possible line is one that is far as possible from the outlying values closest to the line. A more complex kernel function can find previously unknown relationships in the data by creating new features out of the existing features. 
 
 ## Improving Model Performance
 
+To improve our SVM model, we will apply a Gaussian radial basis kernel function:
+
+```{r}
+# Gaussian kernel
+set.seed(12345)
+letter_classifier_rbf <- ksvm(letter ~ ., data = letters_train, kernel = "rbfdot")
+letter_predictions_rbf <- predict(letter_classifier_rbf, letters_test)
+agreement_rbf <- letter_predictions_rbf == letters_test$letter
+table(agreement_rbf)
+prop.table(table(agreement_rbf))
+```
+
+Our model's accuracy has improved dramatically. Let's see if any other of the kernel function options supported by the kernlab package provide even better results:
+
+```{r}
+# polynomial kernel
+set.seed(12345)
+letter_classifier_poly <- ksvm(letter ~ ., data = letters_train, kernel = "polydot")
+letter_predictions_poly <- predict(letter_classifier_poly, letters_test)
+agreement_poly <- letter_predictions_poly == letters_test$letter
+table(agreement_poly)
+prop.table(table(agreement_poly))
+```
+
+The polynomial kernel performed about the same as a linear model. That a polynomial function performed about the same as a linear model while a Gaussian function surpassed both, suggests that the independent features have a non-linear or somewhat random relationship to the dependent feature.
+
 ## Conclusion
 
+Support Vector Machines are powerful machine learning tools which can be used for both classification and numeric prediction. SVMs are not easily influenced by noisy data and can generate accurate models with only a few inputs.
 
+SVMs are often used in place of, or in cooperation with Artifical Neural Networks (ANN). ANNs are parametric machine learning techniques, and are thus very susceptible to overfitting the data. This is something that SVMs are particularly better at on the whole as they avoid making assumptions about the relationships between the input and output variables. 
+
+However, SVMs can be much slower to learn and can often be more computationally expensive than ANNs. Training SVM models can also take much more time as finding the perfect model often requires training different kernel functions and input parameters to find the best fit.
 
 [R Source](hw5-ocr.R) 
