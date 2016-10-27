@@ -77,7 +77,7 @@ The plot shows the disbution of the items in the first five transactions in the 
 image(sample(groceries, 100))
 ```
 
-Here, we have taken a random sample of 100 transactions to see the distribution of items.
+Here, we have taken a random sample of 100 transactions to see the distribution of items. 
 
 ## Train Model
 
