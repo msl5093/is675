@@ -55,7 +55,7 @@ To further explore our data, the arules library includes functions to plot the f
 itemFrequencyPlot(groceries, support = 0.1)
 ```
 
-Here we have plotted the frequency of items with a minimum support level of 0.1. This means, plot the frequency of items where the item appears in at least ten percent of the transactions.
+Here we have plotted the frequency of items with a minimum support level of 0.1. This means, plot the frequency of items where the item appears in at least 10% of the transactions.
 
 Next, we will plot the items that appear at least 20 times in the data:
 
@@ -77,19 +77,114 @@ The plot shows the disbution of the items in the first five transactions in the 
 image(sample(groceries, 100))
 ```
 
-Here, we have taken a random sample of 100 transactions to see the distribution of items. 
+Here, we have taken a random sample of 100 transactions to see the distribution of items. Although these distribution images do not tell us anything about the actual rules that be mined from the data, they are useful for discerning certain patterns. For example, if there appears to be a pattern of filled cells that form a solid column for most of the column, that would tell us that there is an item that occurs freuqently across multiple transactions.
 
 ## Train Model
 
+To train our model we will make use of the previously specified arules R library. Creating a set of association rules for our model requires only that we pass our sparse matrix of transactional data to the apriori method:
 
+```{r}
+apriori(groceries)
+```
+
+Within the scope of association rule learning, the apriori algorithm works to first identify frequently occurring individual items in the data, then extending that process to larger and larger itemsets, so long as they appear frequently enough in the data.
+
+Although building our model from the entire groceries data set without any parameters is possible, it is probably not ideal so we will want to assing our model to an object and specify a few parameters to ensure a more useful model:
+
+```{r}
+groceryrules <- apriori(groceries, parameter = list(support = 0.006, confidence = 0.25, minlen = 2))
+groceryrules
+```
+
+For the groceryrules model, we specified minimum support and confidence levels to look for rules that only pertain to those items and itemsets which occur frequently enough in the data. For support we are looking for items that occur in 0.6% of the data.
+
+Next, we will explore our model to evaluate the rules that were discovered and what we can learn from them.
 
 ## Evaluating Model Performance
 
+```{r}
+summary(groceryrules)
+```
+
+The summary output of our rules object provides some important information about our model. First, we can see that our model discovered a total of 463 rules, and breaks down the number of rules based on their length for both left-hand and right-hand rules. We can see that there are 150 rules with two items, 297 with three items, and 16 with four items. The summary statistics for these rules follows.
+
+After that we can see the summary statistics for the three indicators of rule quality: support, confidence, and lift. Since we specified minimum levels of support and confidence, we see those values as the minimum in the output. 
+
+In association rule learning, lift refers to the measure of performance that a learned rule has at predicting outcomes against a random subset of the model. Basically, how much better would a rule perform at predicting outcomes if it is applied to only a subset of the data. Higher lift means better performance.
+
+We can inspect the first three rules in our model to see what type of rules were learned:
+
+```{r}
+inspect(groceryrules[1:3])
+```
+
+From the output we can see how our rules are structured. In the first column of the output is the left-hand side of the rule, with the second column containing the right-hand side of the rule. The left-hand side implies the right-hand side (e.g. potted plants implies whole milk). Lastly, the other columns contain the support, confidence, and lift for each of the rules.
+
+Based on our understanding of lift, it makes sense to examine the rules with the best lift to identify which rules are most likely to extract some prior unknown knowledge from the data.
 
 ## Improving Model Performance
 
+```{r}
+inspect(sort(groceryrules, by = "lift")[1:5])
+```
+
+The above command outputs the five rules with the best lift values in the model. Based on this output, we could likely use any of these rules for creating a new subset of the original rules to see if any greater insights can be gained. Since these rules have a high lift value, it can be inferred that these rules would likely translate and perform well against different subsets of data.
+
+Since the rule: berries implies whipped/sour cream has a high lift, we can create a subset of our rules model to search for all rules which contain the term berries:
+
+```{r}
+berryrules <- subset(groceryrules, items %in% "berries")
+inspect(berryrules)
+```
+
+Based on an inspection of the berryrules subset, we can see that the high lift rule from the original rule set scores best in terms of lift, but we can also see a new rule with a relatively high lift value: berries implies yogurt.
+
+By applying a little bit of domain knowledge, let's go back to our original groceryrules rule set to see what the other high lift rules were:
+
+```{r}
+inspect(sort(groceryrules, by = "lift")[1:5])
+```
+
+It appears that "other vegetables" occur quite frequently in the left-hand side of several of the top five rules sorted by lift. From this, let's create a subset based on this information and see what rules we can discover:
+
+```{r}
+vegrules <- subset(groceryrules, items %in% "other vegetables")
+inspect(sort(vegrules, by = "lift")[1:10])
+```
+
+Here we see the top ten rules with "other vegetables" in the left-hand side of the rule. It is quite apparent that in many cases, a purchase of "other vegetables" frequently implies a purchase of "root vegetables", regardless of the combination of items that includes "other vegetables." 
+
+This may not be the most useful insight, as these similar produce purchases are probably likely already known or inferred, but it is worth considering that a purchase of one class of vegetable inevitably leads to the purchase of other classes.
+
+Going back to our original rule set, "whole milk" is an item that appears in only one of the top five rules sorted by lift, but this seems like an item that would be purchased based on intuition alone. Let's create a new subset to examine transactions where "whole milk" occurs in only the left-hand side of the transaction to see what are the strongest rules where "whole milk" implies another purchase:
+
+```{r}
+milkrules <- subset(groceryrules, lhs %in% "whole milk")
+inspect(sort(milkrules, by = "lift")[1:10])
+```
+
+It looks like a purchase of "whole milk" with any other combination of items, frequently leads to a purchase of root vegetables. Again, not necessarily a novel idea, but with more granualar data, we could potentially use these insights to discover new, unseen patterns in purchase trends.
+
+Before wrapping up our examination of association rules using supermarket transaction data, let's re-assign our rule sets and put them into a more useful format for export.
+
+Writing our rules to a .csv format is something that would likely be beneficial in a case where we were to export our data and send to a marketing/sales team looking to implement new marketing or product strategies:
+
+```{r}
+write(groceryrules, file = "groceryrules.csv", sep = ",", quote = TRUE, row.names = FALSE)
+groceryrules_df <- as(groceryrules, "data.frame")
+str(groceryrules_df)
+```
+
+In addition to writing our rules data to a .csv file, we also created a data frame, which is a common data structure used in machine learning, and is somewhat more friendly to analysis than our rule classes. 
+
+Examining our data frame, casting our rule set as a data frame has resulted in a data frame that contains all 463 rules as one column of factor type with 463 values. The corresponding support, confidence, and lift values for each of the rules follow in the remaining columns.
 
 ## Conclusion
 
+Association rule learners are quite powerful unsupervised machine learning techniques. The goal of any unsupervised machine learning technique is to extract useful insights into data where our desired outcome is not known. This is different from supervised machine learning techniques where we know the outcome for which we want to test (continuous or class) and are attempting to train a model to best learn from unseen data.
+
+Association rule learners, like other unsupervised techniques, seek to extract insights from data without any training or preparation. The type of data used to perform such analysis and learning is transactional in nature and more closely resembles a data structure that is easier to read and interpret than other machine learning inputs.
+
+Association rules can be understood as logical inferences and statements as opposed to complex mathematical models generated by tehcniques such as regression analysis and neural networks. 
 
 [R Source](hw6.R) 
