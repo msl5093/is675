@@ -1,0 +1,234 @@
+---
+title: "Final - Credit kNN"
+author: "Mike Lehman"
+date: "November 2, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+
+
+In a kNN analysis the methodology is to plot samples (training data points) within a two-dimensional feature space. The algorithm plots all known cases based on the training data during the training phase and then during the classification phase, attempts to classify an unknown feature value by plotting it within the same space and determining the closest known class feature value based on one of many possible distance formulae.
+
+The distance between points typically is the straigh line path between the points and mostt commonly this distance is calculated using Euclidean distance. Other alternatives include Manhattan distance. The algorithm we will use applies Euclidean distance to determine proximity. Once distance is calculated, the algorithm considers the closest number of nearby points based on a pre-determined amount of points to select as decided by the user.
+
+The closest points are the nearest neighbors in a kNN algorithm, where k represents the number of nearest neighbors to consider.
+
+## Data Collection and Preparation
+
+We will begin our assessment by reading the German credit data into an R data frame and examining the 
+
+```{r}
+credit <- read.csv("credit.csv")
+str(credit)
+```
+
+Let's examine a few of the features that sounds as though they may be good inidcators of whether a person will default on a loan and see the relationships:
+
+```{r}
+library(car)
+scatterplot(credit$amount ~ credit$months_loan_duration | credit$default)
+scatterplot(credit$amount ~ credit$age | credit$default)
+```
+
+Here we've constructed two scatterplots using loan amounts as the y-axis variable and months loan duration and age as the two x-axis values. We've also included the default class variable to see the distribution of the class values along these parameters.
+
+From the two scatterplots, it appears that defaults are randomly scattered across loan amounts and loan durations as well as the age of the individual. Let's also take a look at the distribution of loan amounts relative to the duration of the loan:
+
+```{r}
+boxplot(amount ~ months_loan_duration, data = credit, main="Credit Data", xlab = "months_loan_duration", ylab = "amount")
+```
+
+It appears that as loan durations increase, the amounts of loans increase as well. There also appear to be some outliers of extreme high or low loan values for a given duration. This tells us that loan amounts and durations have a strong correlation and may be of some use when building our classifier
+
+Now that we've taken a cursory look at some of the relationships between the data points, there is some cleaning of the data that needs to be done before building a kNN classifier. First, kNN models are highly susceptible to large ranges in values for variables. 
+
+```{r}
+summary(credit[sapply(credit, is.numeric)]) 
+```
+
+From the output above, we can see the summary statistics for our numeric variables. Some of the variables appear acceptable in that they have close min and max values. However, for months loan duration, amount, and age the values range pretty wide and need to be brought closer together before performing any analysis.
+
+To bring these values closer together we can apply a method of normalization known as min-max normalization that follows the format of: (x-min(x))/(max(x)-min(x)). To implement this, we will create a custom function:
+
+```{r}
+normalize <- function(x){
+  return((x - min(x)) / (max(x) - min(x)))
+}
+
+credit["months_loan_duration"] <- lapply(credit["months_loan_duration"], normalize)
+credit["amount"] <- lapply(credit["amount"], normalize)
+credit["age"] <- lapply(credit["age"], normalize)
+
+summary(credit[sapply(credit, is.numeric)])
+```
+
+Now we can see that our three problematic numeric variables have a much closer distribution.
+
+Since we read the data in by leaving stringsAsFactors to the default of TRUE, we can see that we have mostly factor variables in our data set.
+
+As a kNN assessment works only with numeric values we will have to convert these factor variables to a useful data type that the kNN model will be able to understand. To remedy this, we can easily cast these factors as numeric values using native R functions since each factor level is represented as an integer: 1, 2, 3, 4, etc.:
+
+```{r}
+summary(credit[sapply(credit, is.factor)])
+credit$checking_balance <- as.numeric(credit$checking_balance)
+credit$credit_history <- as.numeric(credit$credit_history)
+credit$purpose <- as.numeric(credit$purpose)
+credit$savings_balance <- as.numeric(credit$savings_balance)
+credit$employment_duration <- as.numeric(credit$employment_duration)
+credit$other_credit <- as.numeric(credit$other_credit)
+credit$housing <- as.numeric(credit$housing)
+credit$job <- as.numeric(credit$job)
+credit$phone <- as.numeric(credit$phone)
+str(credit)
+```
+
+There is one problem with this approach which could impact the efficacy of our classifier. Converting factor variables directly to numeric features implies that the difference in levels between the factors is consistent across all levels. That is to say, the increase in impact of moving from level one of a factor to level two is the same as the jump from level two to level three, and so on.
+
+Looking at the job feature, the difference between management and skilled (2 and 4 factor levels in our data set) when translated to a numeric value may not mean that a skilled job is double the value of a management job. This difference may be negligible for ordinal (ordered) factors, but for nominal factors (such as job), we will simply have to concede this as a potential bias in our data when assessing the model's performance.
+
+Now that our features are scaled, normalized, and properly coded, we will create test and train data sets for classification. We will reserve 10% of the data for testing and allow the other 90% to be used in training the model. Since the credit data is not randomly ordered, we need to ensure our train and test sets are randomized to avoid overfitting when training:
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample,]
+credit_test <- credit[-train_sample,]
+```
+
+Here we set a seed value to ensure our results are repeatable and created a list of 900 random values to use to grab data from the credit set for training. We then grab the values not found in our random list to assign the test data set all the rows left from the credit set that were not used for the train set.
+
+Lastly, let's verify that the proportion of our class feature is consistent in both the train and test sets:
+
+```{r}
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+The proportions and distributions are relatively even and acceptable. Now we simply need to assign the default class feature to train and test lists and drop it from the data sets as we cannot have a factor variable in our classifier:
+
+```{r}
+credit_train_labels <- credit_train[,"default"]
+credit_test_labels <- credit_test[,"default"]
+credit_train <- credit_train[-17]
+credit_test <- credit_test[-17]
+```
+
+This ensures that our class labels are kept consistent with the train and test data set rows before dropping the feature.
+
+## Train Model
+
+To train our model we will use the knn() function available in the class R package. We will pass our train data to the knn() function as well as the test data and train labels. The function will then assign a value for default (yes, no).
+
+The final parameter to pass to the knn() function is the number of neighbors to assess when the function builds the model. The general rule of thumb in selecting the number of neighbors is to use the square root of the number of samples in the train data. In our case this means the square root of 900, which conveniently enough is exactly 30:
+
+
+```{r}
+library(class)
+credit_test_pred <- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 30)
+```
+
+## Evaluating Model Performance
+
+Now that we have our kNN classifier model, we can assess performance by creating a cross tabulation to compare predicted to actual results:
+
+```{r}
+library(gmodels)
+CrossTable(x = credit_test_labels, y = credit_test_pred, prop.chisq = FALSE)
+```
+
+The results indicate that our first model has performed quite well. The upper-left and bottom-right hand corner boxes indicate how often the classifier correctly predicted either a no or yes value for our default feature. The other boxes are how often the classifier incorrectly predicted the default feature value.
+
+In this case, the classifier correctly predicted 66/67 total cases correctly where there was no default. However, it appears the classifier had some difficulty finding actual defaults and only correctly predicted 8/33 cases. Overall this puts the error rate of the classifier at: 26%. 
+
+For a first model this performance is quite good, although identifying actual defaults correctly at a better rate would be much more useful as the real-world penalty for misclasifying actual defaults is much worse than actual not default cases.
+
+## Improving Model Performance
+
+In a kNN classifier, the algorithm we are using takes the class of the majority of the nearest neighbors. That is, after training, if the majority of the 30 nearest neighbors are of a default value 'no', the algorithm will classify the case as no, even though a few of the nearest neighbors may have been of the class value: 'yes'.
+
+One way to potentially improve our algorithm is to adjust the number of nearest neighbors to consider. There are some considerations that accompany adjusting the number of neighbors. Consider too few neighbors and we may miss relevant patterns in the data, add too many and we run the risk of overfitting the data. Let's attempt to improve our classifier by slightly modifying from the k value of 30.
+
+```{r}
+credit_test_pred2 <- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 40)
+CrossTable(x = credit_test_labels, y = credit_test_pred2, prop.chisq = FALSE)
+```
+
+By increasing the number of neighbors to 40, we actually saw a slight decrease in performance as our classifier misclassified a no example leading to an additional false positive. Additionally, we did not catch any new default yes values.
+
+As this could be a case of slight overfitting to the training data, let's decrease the number of neighbors and examine the results:
+
+```{r}
+credit_test_pred3 <- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 20)
+CrossTable(x = credit_test_labels, y = credit_test_pred3, prop.chisq = FALSE)
+```
+
+Again, no improvement and we actually matched the results using a k value of 30. Since our results didn't get worse, let's lastly try even fewer neighbors to see if that improves:
+
+```{r}
+credit_test_pred4 <- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 10)
+CrossTable(x = credit_test_labels, y = credit_test_pred4, prop.chisq = FALSE)
+```
+
+Interestingly, we see poorer performance at classifying no defaults but improved our numbers against yes defaults; however, our total error rate is worse than our initial model.
+
+One last approach we could use is to change the way we normalized our numeric features. A min-max normalization, like that applied with our custom function, attempts to scale feature values such that their range falls between 0 and 1. Another common way of standardizing data is to scale data by assigning a z-score value to each feature example.
+
+Z-score is simply a measure of how many standard deviations below or above the population mean a value lies. We can use native
+
+```{r}
+credit_z <- read.csv("credit.csv")
+credit_z["months_loan_duration"] <- as.data.frame(scale(credit_z["months_loan_duration"]))
+credit_z["amount"] <- as.data.frame(scale(credit_z["amount"]))
+credit_z["age"] <- as.data.frame(scale(credit_z["age"]))
+
+summary(credit_z[sapply(credit_z, is.numeric)]) # months_loan_duration, amount, age
+
+credit_z$checking_balance <- as.numeric(credit_z$checking_balance)
+credit_z$credit_history <- as.numeric(credit_z$credit_history)
+credit_z$purpose <- as.numeric(credit_z$purpose)
+credit_z$savings_balance <- as.numeric(credit_z$savings_balance)
+credit_z$employment_duration <- as.numeric(credit_z$employment_duration)
+credit_z$other_credit <- as.numeric(credit_z$other_credit)
+credit_z$housing <- as.numeric(credit_z$housing)
+credit_z$job <- as.numeric(credit_z$job)
+credit_z$phone <- as.numeric(credit_z$phone)
+
+credit_z_train <- credit_z[train_sample,]
+credit_z_test <- credit_z[-train_sample,]
+
+credit_z_train_labels <- credit_z_train[,"default"]
+credit_z_test_labels <- credit_z_test[,"default"]
+
+credit_z_train <- credit_z_train[-17]
+credit_z_test <- credit_z_test[-17]
+
+credit_z_test_pred <- knn(train = credit_z_train, test = credit_z_test, cl = credit_z_train_labels, k = 30)
+CrossTable(x = credit_z_test_labels, y = credit_z_test_pred, prop.chisq = FALSE)
+```
+
+We started with a k value of 30 for our z-score scaled data set since that gave us the best performance during the first iterations. We can see some promising results here. Our total error rate is still 26%, but it appears that we have gotten a little better at identifying true positives, catching 11/33 total.
+
+Let's try the same with a lower number of neighbors to see if we can imrove our error rate on last time:
+
+```{r}
+credit_z_test_pred <- knn(train = credit_z_train, test = credit_z_test, cl = credit_z_train_labels, k = 10)
+CrossTable(x = credit_z_test_labels, y = credit_z_test_pred, prop.chisq = FALSE)
+```
+
+Not any improvement in any case here, and overall we got poorer results. Based on the combinations tested, a scaled numeric feature set using z-score and the standard starting point of 30 for k seems to have given the best results. 
+
+## Conclusion
+
+kNN algorithms provide a simple to understand and often very powerful supervised machine learning models. This particular machine learning technique is considered an instance-based lazy learning technique, which means that the algorithm uses examples seen in the training data as comparison values for new, unseen data. The algorithm considers new values as they compare directly to training examples. All classification is delayed until after training and the resulting model is optimized locally for that example.
+
+Despite being a simple machine learning model, as we've seen from this assessment, powerful classifiers can be built using a kNN algorithm. Although our best error rate was 26%, and our best models did an exceptional job classifying 'no' default values, in all examples we came up short when it came to classifying actual 'yes' default values.
+
+This difficulty could speak to the complexity of the problem in that there simply aren't enough examples in the data set to build a better model, or that predicting credit defaults is a complex problem that requires more data points than what were given.
+
+[R Source](credit-kNN) 
