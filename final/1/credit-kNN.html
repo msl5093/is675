@@ -124,13 +124,17 @@ $(document).ready(function () {
 
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
+<p>The goal of this assessment is to apply a k Nearest Neighbors (kNN) classifier to a set of financial data from Germany in order to determine the likelihood that an individual will default on a loan.</p>
 <p>In a kNN analysis the methodology is to plot samples (training data points) within a two-dimensional feature space. The algorithm plots all known cases based on the training data during the training phase and then during the classification phase, attempts to classify an unknown feature value by plotting it within the same space and determining the closest known class feature value based on one of many possible distance formulae.</p>
 <p>The distance between points typically is the straigh line path between the points and mostt commonly this distance is calculated using Euclidean distance. Other alternatives include Manhattan distance. The algorithm we will use applies Euclidean distance to determine proximity. Once distance is calculated, the algorithm considers the closest number of nearby points based on a pre-determined amount of points to select as decided by the user.</p>
 <p>The closest points are the nearest neighbors in a kNN algorithm, where k represents the number of nearest neighbors to consider.</p>
 </div>
 <div id="data-collection-and-preparation" class="section level2">
 <h2>Data Collection and Preparation</h2>
-<p>We will begin our assessment by reading the German credit data into an R data frame and examining the</p>
+<p>The original German credit data set can be found at the <a href="http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29">UCI Machine Learning Repository</a>. At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric.</p>
+<p>The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.</p>
+<p>The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv) is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.</p>
+<p>credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:</p>
 <pre class="r"><code>credit &lt;- read.csv(&quot;credit.csv&quot;)
 str(credit)</code></pre>
 <pre><code>## 'data.frame':    1000 obs. of  17 variables:
@@ -289,10 +293,274 @@ credit_test_pred &lt;- knn(train = credit_train, test = credit_test, cl = credit
 </div>
 <div id="evaluating-model-performance" class="section level2">
 <h2>Evaluating Model Performance</h2>
+<p>Now that we have our kNN classifier model, we can assess performance by creating a cross tabulation to compare predicted to actual results:</p>
+<pre class="r"><code>library(gmodels)
+CrossTable(x = credit_test_labels, y = credit_test_pred, prop.chisq = FALSE)</code></pre>
+<pre><code>## 
+##  
+##    Cell Contents
+## |-------------------------|
+## |                       N |
+## |           N / Row Total |
+## |           N / Col Total |
+## |         N / Table Total |
+## |-------------------------|
+## 
+##  
+## Total Observations in Table:  100 
+## 
+##  
+##                    | credit_test_pred 
+## credit_test_labels |        no |       yes | Row Total | 
+## -------------------|-----------|-----------|-----------|
+##                 no |        66 |         1 |        67 | 
+##                    |     0.985 |     0.015 |     0.670 | 
+##                    |     0.725 |     0.111 |           | 
+##                    |     0.660 |     0.010 |           | 
+## -------------------|-----------|-----------|-----------|
+##                yes |        25 |         8 |        33 | 
+##                    |     0.758 |     0.242 |     0.330 | 
+##                    |     0.275 |     0.889 |           | 
+##                    |     0.250 |     0.080 |           | 
+## -------------------|-----------|-----------|-----------|
+##       Column Total |        91 |         9 |       100 | 
+##                    |     0.910 |     0.090 |           | 
+## -------------------|-----------|-----------|-----------|
+## 
+## </code></pre>
+<p>The results indicate that our first model has performed quite well. The upper-left and bottom-right hand corner boxes indicate how often the classifier correctly predicted either a no or yes value for our default feature. The other boxes are how often the classifier incorrectly predicted the default feature value.</p>
+<p>In this case, the classifier correctly predicted 66/67 total cases correctly where there was no default. However, it appears the classifier had some difficulty finding actual defaults and only correctly predicted 8/33 cases. Overall this puts the error rate of the classifier at: 26%.</p>
+<p>For a first model this performance is quite good, although identifying actual defaults correctly at a better rate would be much more useful as the real-world penalty for misclasifying actual defaults is much worse than actual not default cases.</p>
 </div>
 <div id="improving-model-performance" class="section level2">
 <h2>Improving Model Performance</h2>
-<p><a href="credit-kNN">R Source</a></p>
+<p>In a kNN classifier, the algorithm we are using takes the class of the majority of the nearest neighbors. That is, after training, if the majority of the 30 nearest neighbors are of a default value ‘no’, the algorithm will classify the case as no, even though a few of the nearest neighbors may have been of the class value: ‘yes’.</p>
+<p>One way to potentially improve our algorithm is to adjust the number of nearest neighbors to consider. There are some considerations that accompany adjusting the number of neighbors. Consider too few neighbors and we may miss relevant patterns in the data, add too many and we run the risk of overfitting the data. Let’s attempt to improve our classifier by slightly modifying from the k value of 30.</p>
+<pre class="r"><code>credit_test_pred2 &lt;- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 40)
+CrossTable(x = credit_test_labels, y = credit_test_pred2, prop.chisq = FALSE)</code></pre>
+<pre><code>## 
+##  
+##    Cell Contents
+## |-------------------------|
+## |                       N |
+## |           N / Row Total |
+## |           N / Col Total |
+## |         N / Table Total |
+## |-------------------------|
+## 
+##  
+## Total Observations in Table:  100 
+## 
+##  
+##                    | credit_test_pred2 
+## credit_test_labels |        no |       yes | Row Total | 
+## -------------------|-----------|-----------|-----------|
+##                 no |        65 |         2 |        67 | 
+##                    |     0.970 |     0.030 |     0.670 | 
+##                    |     0.722 |     0.200 |           | 
+##                    |     0.650 |     0.020 |           | 
+## -------------------|-----------|-----------|-----------|
+##                yes |        25 |         8 |        33 | 
+##                    |     0.758 |     0.242 |     0.330 | 
+##                    |     0.278 |     0.800 |           | 
+##                    |     0.250 |     0.080 |           | 
+## -------------------|-----------|-----------|-----------|
+##       Column Total |        90 |        10 |       100 | 
+##                    |     0.900 |     0.100 |           | 
+## -------------------|-----------|-----------|-----------|
+## 
+## </code></pre>
+<p>By increasing the number of neighbors to 40, we actually saw a slight decrease in performance as our classifier misclassified a no example leading to an additional false positive. Additionally, we did not catch any new default yes values.</p>
+<p>As this could be a case of slight overfitting to the training data, let’s decrease the number of neighbors and examine the results:</p>
+<pre class="r"><code>credit_test_pred3 &lt;- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 20)
+CrossTable(x = credit_test_labels, y = credit_test_pred3, prop.chisq = FALSE)</code></pre>
+<pre><code>## 
+##  
+##    Cell Contents
+## |-------------------------|
+## |                       N |
+## |           N / Row Total |
+## |           N / Col Total |
+## |         N / Table Total |
+## |-------------------------|
+## 
+##  
+## Total Observations in Table:  100 
+## 
+##  
+##                    | credit_test_pred3 
+## credit_test_labels |        no |       yes | Row Total | 
+## -------------------|-----------|-----------|-----------|
+##                 no |        66 |         1 |        67 | 
+##                    |     0.985 |     0.015 |     0.670 | 
+##                    |     0.725 |     0.111 |           | 
+##                    |     0.660 |     0.010 |           | 
+## -------------------|-----------|-----------|-----------|
+##                yes |        25 |         8 |        33 | 
+##                    |     0.758 |     0.242 |     0.330 | 
+##                    |     0.275 |     0.889 |           | 
+##                    |     0.250 |     0.080 |           | 
+## -------------------|-----------|-----------|-----------|
+##       Column Total |        91 |         9 |       100 | 
+##                    |     0.910 |     0.090 |           | 
+## -------------------|-----------|-----------|-----------|
+## 
+## </code></pre>
+<p>Again, no improvement and we actually matched the results using a k value of 30. Since our results didn’t get worse, let’s lastly try even fewer neighbors to see if that improves:</p>
+<pre class="r"><code>credit_test_pred4 &lt;- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 10)
+CrossTable(x = credit_test_labels, y = credit_test_pred4, prop.chisq = FALSE)</code></pre>
+<pre><code>## 
+##  
+##    Cell Contents
+## |-------------------------|
+## |                       N |
+## |           N / Row Total |
+## |           N / Col Total |
+## |         N / Table Total |
+## |-------------------------|
+## 
+##  
+## Total Observations in Table:  100 
+## 
+##  
+##                    | credit_test_pred4 
+## credit_test_labels |        no |       yes | Row Total | 
+## -------------------|-----------|-----------|-----------|
+##                 no |        63 |         4 |        67 | 
+##                    |     0.940 |     0.060 |     0.670 | 
+##                    |     0.700 |     0.400 |           | 
+##                    |     0.630 |     0.040 |           | 
+## -------------------|-----------|-----------|-----------|
+##                yes |        27 |         6 |        33 | 
+##                    |     0.818 |     0.182 |     0.330 | 
+##                    |     0.300 |     0.600 |           | 
+##                    |     0.270 |     0.060 |           | 
+## -------------------|-----------|-----------|-----------|
+##       Column Total |        90 |        10 |       100 | 
+##                    |     0.900 |     0.100 |           | 
+## -------------------|-----------|-----------|-----------|
+## 
+## </code></pre>
+<p>Interestingly, we see poorer performance at classifying no defaults but improved our numbers against yes defaults; however, our total error rate is worse than our initial model.</p>
+<p>One last approach we could use is to change the way we normalized our numeric features. A min-max normalization, like that applied with our custom function, attempts to scale feature values such that their range falls between 0 and 1. Another common way of standardizing data is to scale data by assigning a z-score value to each feature example.</p>
+<p>Z-score is simply a measure of how many standard deviations below or above the population mean a value lies. We can use native</p>
+<pre class="r"><code>credit_z &lt;- read.csv(&quot;credit.csv&quot;)
+credit_z[&quot;months_loan_duration&quot;] &lt;- as.data.frame(scale(credit_z[&quot;months_loan_duration&quot;]))
+credit_z[&quot;amount&quot;] &lt;- as.data.frame(scale(credit_z[&quot;amount&quot;]))
+credit_z[&quot;age&quot;] &lt;- as.data.frame(scale(credit_z[&quot;age&quot;]))
+
+summary(credit_z[sapply(credit_z, is.numeric)]) # months_loan_duration, amount, age</code></pre>
+<pre><code>##  months_loan_duration     amount        percent_of_income
+##  Min.   :-1.4017      Min.   :-1.0703   Min.   :1.000    
+##  1st Qu.:-0.7383      1st Qu.:-0.6751   1st Qu.:2.000    
+##  Median :-0.2407      Median :-0.3372   Median :3.000    
+##  Mean   : 0.0000      Mean   : 0.0000   Mean   :2.973    
+##  3rd Qu.: 0.2568      3rd Qu.: 0.2483   3rd Qu.:4.000    
+##  Max.   : 4.2373      Max.   : 5.3681   Max.   :4.000    
+##  years_at_residence      age          existing_loans_count   dependents   
+##  Min.   :1.000      Min.   :-1.4545   Min.   :1.000        Min.   :1.000  
+##  1st Qu.:2.000      1st Qu.:-0.7513   1st Qu.:1.000        1st Qu.:1.000  
+##  Median :3.000      Median :-0.2238   Median :1.000        Median :1.000  
+##  Mean   :2.845      Mean   : 0.0000   Mean   :1.407        Mean   :1.155  
+##  3rd Qu.:4.000      3rd Qu.: 0.5674   3rd Qu.:2.000        3rd Qu.:1.000  
+##  Max.   :4.000      Max.   : 3.4683   Max.   :4.000        Max.   :2.000</code></pre>
+<pre class="r"><code>credit_z$checking_balance &lt;- as.numeric(credit_z$checking_balance)
+credit_z$credit_history &lt;- as.numeric(credit_z$credit_history)
+credit_z$purpose &lt;- as.numeric(credit_z$purpose)
+credit_z$savings_balance &lt;- as.numeric(credit_z$savings_balance)
+credit_z$employment_duration &lt;- as.numeric(credit_z$employment_duration)
+credit_z$other_credit &lt;- as.numeric(credit_z$other_credit)
+credit_z$housing &lt;- as.numeric(credit_z$housing)
+credit_z$job &lt;- as.numeric(credit_z$job)
+credit_z$phone &lt;- as.numeric(credit_z$phone)
+
+credit_z_train &lt;- credit_z[train_sample,]
+credit_z_test &lt;- credit_z[-train_sample,]
+
+credit_z_train_labels &lt;- credit_z_train[,&quot;default&quot;]
+credit_z_test_labels &lt;- credit_z_test[,&quot;default&quot;]
+
+credit_z_train &lt;- credit_z_train[-17]
+credit_z_test &lt;- credit_z_test[-17]
+
+credit_z_test_pred &lt;- knn(train = credit_z_train, test = credit_z_test, cl = credit_z_train_labels, k = 30)
+CrossTable(x = credit_z_test_labels, y = credit_z_test_pred, prop.chisq = FALSE)</code></pre>
+<pre><code>## 
+##  
+##    Cell Contents
+## |-------------------------|
+## |                       N |
+## |           N / Row Total |
+## |           N / Col Total |
+## |         N / Table Total |
+## |-------------------------|
+## 
+##  
+## Total Observations in Table:  100 
+## 
+##  
+##                      | credit_z_test_pred 
+## credit_z_test_labels |        no |       yes | Row Total | 
+## ---------------------|-----------|-----------|-----------|
+##                   no |        65 |         2 |        67 | 
+##                      |     0.970 |     0.030 |     0.670 | 
+##                      |     0.747 |     0.154 |           | 
+##                      |     0.650 |     0.020 |           | 
+## ---------------------|-----------|-----------|-----------|
+##                  yes |        22 |        11 |        33 | 
+##                      |     0.667 |     0.333 |     0.330 | 
+##                      |     0.253 |     0.846 |           | 
+##                      |     0.220 |     0.110 |           | 
+## ---------------------|-----------|-----------|-----------|
+##         Column Total |        87 |        13 |       100 | 
+##                      |     0.870 |     0.130 |           | 
+## ---------------------|-----------|-----------|-----------|
+## 
+## </code></pre>
+<p>We started with a k value of 30 for our z-score scaled data set since that gave us the best performance during the first iterations. We can see some promising results here. Our total error rate is still 26%, but it appears that we have gotten a little better at identifying true positives, catching 11/33 total.</p>
+<p>Let’s try the same with a lower number of neighbors to see if we can imrove our error rate on last time:</p>
+<pre class="r"><code>credit_z_test_pred &lt;- knn(train = credit_z_train, test = credit_z_test, cl = credit_z_train_labels, k = 10)
+CrossTable(x = credit_z_test_labels, y = credit_z_test_pred, prop.chisq = FALSE)</code></pre>
+<pre><code>## 
+##  
+##    Cell Contents
+## |-------------------------|
+## |                       N |
+## |           N / Row Total |
+## |           N / Col Total |
+## |         N / Table Total |
+## |-------------------------|
+## 
+##  
+## Total Observations in Table:  100 
+## 
+##  
+##                      | credit_z_test_pred 
+## credit_z_test_labels |        no |       yes | Row Total | 
+## ---------------------|-----------|-----------|-----------|
+##                   no |        63 |         4 |        67 | 
+##                      |     0.940 |     0.060 |     0.670 | 
+##                      |     0.733 |     0.286 |           | 
+##                      |     0.630 |     0.040 |           | 
+## ---------------------|-----------|-----------|-----------|
+##                  yes |        23 |        10 |        33 | 
+##                      |     0.697 |     0.303 |     0.330 | 
+##                      |     0.267 |     0.714 |           | 
+##                      |     0.230 |     0.100 |           | 
+## ---------------------|-----------|-----------|-----------|
+##         Column Total |        86 |        14 |       100 | 
+##                      |     0.860 |     0.140 |           | 
+## ---------------------|-----------|-----------|-----------|
+## 
+## </code></pre>
+<p>Not any improvement in any case here, and overall we got poorer results. Based on the combinations tested, a scaled numeric feature set using z-score and the standard starting point of 30 for k seems to have given the best results.</p>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>kNN algorithms provide a simple to understand and often very powerful supervised machine learning models. This particular machine learning technique is considered an instance-based lazy learning technique, which means that the algorithm uses examples seen in the training data as comparison values for new, unseen data. The algorithm considers new values as they compare directly to training examples. All classification is delayed until after training and the resulting model is optimized locally for that example.</p>
+<p>Despite being a simple machine learning model, as we’ve seen from this assessment, powerful classifiers can be built using a kNN algorithm. Although our best error rate was 26%, and our best models did an exceptional job classifying ‘no’ default values, in all examples we came up short when it came to classifying actual ‘yes’ default values.</p>
+<p>This difficulty could speak to the complexity of the problem in that there simply aren’t enough examples in the data set to build a better model, or that predicting credit defaults is a complex problem that requires more data points than what were given.</p>
+<p><a href="credit-kNN.R">R Source</a></p>
 </div>
 
 

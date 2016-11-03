@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-
+The goal of this assessment is to apply a k Nearest Neighbors (kNN) classifier to a set of financial data from Germany in order to determine the likelihood that an individual will default on a loan. 
 
 In a kNN analysis the methodology is to plot samples (training data points) within a two-dimensional feature space. The algorithm plots all known cases based on the training data during the training phase and then during the classification phase, attempts to classify an unknown feature value by plotting it within the same space and determining the closest known class feature value based on one of many possible distance formulae.
 
@@ -21,7 +21,13 @@ The closest points are the nearest neighbors in a kNN algorithm, where k represe
 
 ## Data Collection and Preparation
 
-We will begin our assessment by reading the German credit data into an R data frame and examining the 
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
+
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
+
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:
 
 ```{r}
 credit <- read.csv("credit.csv")
@@ -231,4 +237,4 @@ Despite being a simple machine learning model, as we've seen from this assessmen
 
 This difficulty could speak to the complexity of the problem in that there simply aren't enough examples in the data set to build a better model, or that predicting credit defaults is a complex problem that requires more data points than what were given.
 
-[R Source](credit-kNN) 
+[R Source](credit-kNN.R) 

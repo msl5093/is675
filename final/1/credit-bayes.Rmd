@@ -1,0 +1,119 @@
+---
+title: "Final - Credit Bayes"
+author: "Mike Lehman"
+date: "November 3, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to apply a Naive Bayes classifier to a set of financial data from Germany in order to determine the likelihood that an individual will default on a loan.
+
+Naive Bayes classifiers are simple but powerful models for assigning class labels to instances represented as a vector of feature values. Naive Bayes are known as such, as they are based on Bayesian probability and also assume that the value of a feature is indepdendent of the value of any other feature within the vector. Although Bayesion probability is often used, Naive Bayes classifiers can also apply non-Bayesian probability measures such as maximum-likelihood.
+
+The implementation we will use can found in e1071 R package uses posterior probability. In short, posterior probability is the conditional probability of a value based on the study of previous examples and given another event with the same conditions occurred previously.
+
+## Data Collection and Preparation
+
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
+
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
+
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:
+
+```{r}
+credit <- read.csv("credit.csv")
+str(credit)
+```
+
+Looking at the data, we have a mix of factor and numeric/intger variables. Our Naive Bayes model will assess the default class value based on previous instances of other features and their relationship to the default class value. Because some of these numeric variables are continuous, the likelihood of the exact same value occurring frequently is probably quite low. This could have an impact on the performance of our model. 
+
+For now, we will leave all the variable types and values untouched and build our first classifier to establish a baseline.
+
+We will set a seed value so that our results are reproducible and randomize train and test data sets reserving 90% for training and leaving 10% for testing:
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample,]
+credit_test <- credit[-train_sample,]
+```
+
+Before continuing, we'll want to double-check to make sure our train and test data sets have roughly even amounts of both possible values for default:
+
+```{r}
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+The proportions are close enough to continue by assigning the corresponding train and test class labels to their own lists:
+
+```{r}
+credit_train_labels <- credit_train[,"default"]
+credit_test_labels <- credit_test[,"default"]
+```
+
+## Train Model
+
+To build our classifier we will make use of the naiveBayes() function in the e1071 R package. As mentioned earlier, this algorithm uses posterior probability to classify instances. All we need to do to contruct the classifier is to pass our train data (minus the default values) and our corresponding train labels:
+
+```{r}
+classifier <- naiveBayes(credit_train[-17], credit_train_labels)
+classifier
+```
+
+The output of our classifier shows some important details about our model. It provides the a-priori (already known) values of our train labels and follows with the conditional probabilites of each feature. The numbers represent that percentage of that value occurring for each class label in the train data.
+
+To make a prediction, we will pass our classifier and the test data set (again minus the default value).
+
+```{r}
+class_test_pred <- predict(classifier, credit_test[-17])
+```
+
+## Evaluating Model Performance
+
+Our predictions object contains a vector of values with factor levels of yes/no. We can compare these predictions to the 
+
+```{r}
+CrossTable(class_test_pred, credit_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+
+## Improving Model Performance
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 500)
+credit_train <- credit[train_sample,]
+credit_test <- credit[-train_sample,]
+```
+
+```{r}
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+```{r}
+credit_train_labels <- credit_train[,"default"]
+credit_test_labels <- credit_test[,"default"]
+
+classifier <- naiveBayes(credit_train, credit_train_labels)
+class_test_pred <- predict(classifier, credit_test)
+CrossTable(class_test_pred, credit_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+
+```{r}
+cred_classifier <- naiveBayes(credit_train, credit_train_labels, laplace = 4)
+cred_test_pred <- predict(cred_classifier, credit_test)
+CrossTable(cred_test_pred, credit_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+
+## Conclusion
+
+
+[R Source](credit-bayes.R) 
