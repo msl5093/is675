@@ -1,0 +1,22 @@
+---
+title: "HW7"
+author: "Mike Lehman"
+date: "November 4, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+
+
+## Data Collection and Preparation
+
+## Train Model
+
+## Evaluating Model Performance
+
+## Improving Model Performance
