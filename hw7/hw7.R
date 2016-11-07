@@ -19,21 +19,16 @@ table(teens$gender, useNA = "ifany")
 table(teens$female, useNA = "ifany")
 table(teens$no_gender, useNA = "ifany")
 
-# finding the mean age by cohort
-mean(teens$age) # doesn't work
-mean(teens$age, na.rm = TRUE) # works
+# mean age by cohort
+mean(teens$age)
+mean(teens$age, na.rm = TRUE)
 
 # age by cohort
 aggregate(data = teens, age ~ gradyear, mean, na.rm = TRUE)
 
 # create a vector with the average age for each gradyear, repeated by person
-ave_age <- ave(teens$age, teens$gradyear,
-               FUN = function(x) mean(x, na.rm = TRUE))
-
-
+ave_age <- ave(teens$age, teens$gradyear, FUN = function(x) mean(x, na.rm = TRUE))
 teens$age <- ifelse(is.na(teens$age), ave_age, teens$age)
-
-# check the summary results to ensure missing values are eliminated
 summary(teens$age)
 
 # Train Model
@@ -51,15 +46,11 @@ teen_clusters$centers
 
 # Improving Model Performance
 teens$cluster <- teen_clusters$cluster
-
-# look at the first five records
 teens[1:5, c("cluster", "gender", "age", "friends")]
 
-# mean age by cluster
 aggregate(data = teens, age ~ cluster, mean)
-
-# proportion of females by cluster
 aggregate(data = teens, female ~ cluster, mean)
-
-# mean number of friends by cluster
 aggregate(data = teens, friends ~ cluster, mean)
+
+library(fpc)
+plotcluster(teens[5:40], teens$cluster)
