@@ -11,12 +11,201 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
+The goal of this assessment is to apply an unsupervised machine learning technique to a given data set to extract new, previously unknown insights from the data. The technique that we will use is a particular approach to clustering. Clustering is simply a way of dividing data into groups of similar items without having been instructed as to what the groups should look like prior to grouping. 
 
+Clustering works by plotting all data points into a two-dimensional feature space, then assigning random fixed positions and drawing boundaries which attempt to group all data points in homogenous groups.
+
+There are many different implementations of clustering, the one we will examine is the k-means algorithm. The k-means algorithm uses simple ideas that are easy to understand, but is lacking in sophistication and is driven by a process of random selection that often may require several iterations to extract any meaningful information. The algorithm uses Euclidean distance to determine the spatial distance between two data points to determine which items should be considered homogenous and cluster boundaries drawn.
+
+The algorithm assigns each example to one of k clusters, with k representing a user defined value. The process begins by randomly assigning center points (centroids) during an initial assignment phase, then enters an update phase which involves shifting the cluster centers to a new location in efforts to create more locally homogenous clusters.
 
 ## Data Collection and Preparation
 
+To assess a k-means clustering implementation we will be using social networking service application profile data of a population of teenagers. The goal is to determine unknown patterns and groups across the different demographics to target advertising and marketing campaigns. The data set we will be using is a random sample of 30,000 U.S. high school students with profiles from a prominent social networking service circa 2006. 
+
+The original data was compiled through sociological research at the University of Notre Dame. The data set we will use contains a random sample from this research. The data was captured evenly across graduation years from 2006-2009 using an automated web crawler. A text mining tool was then used to separate content into individual words from the top 500 terms appearing across each profile.
+
+We will begin by reading the data into an R data frame and examining the feature details: 
+
+```{r}
+teens <- read.csv("snsdata.csv")
+str(teens)
+```
+
+The data is 30,000 observations of 40 features including graduation year, gender, and age of each student. The rest of the data are various terms found on the various student's profiles on the social networking service and how many times that word appeared in each profile.
+
+We can see from the output that there are a number of NA values for gender. It appears we have several missing values for gender. 
+
+```{r}
+table(teens$gender)
+table(teens$gender, useNA = "ifany")
+```
+
+The first command outputs a simple table with the distribution of each feature value. However, as the gender feature was read in as a factor, R intentionally omits the NA values. To see how many gender values we are missing, we passed the useNA = "ifany" parameter and value to print the feature distribution including NAs.
+
+Further insepction of the data reveals that age is the only other feature with missing values:
+
+```{r}
+summary(teens$age)
+```
+
+It appears we have 5,086 missing values for the age feature. Since we have missing values for a factor and a numeric value, we will have to develop two different methods for addressing the missing data.
+
+Let's being with the age feature and attempt to address the missing data. 
+
+Before we can address the missing age values, the distribution of the values appears abnormal. It can be reasonably assumed that a minimum age of three and a maximum of 106 is not likely an accurate representation of high school student age. 
+
+The safest way to deal with these extremes is to simply assign them to NA and we can then address those with the other NA values:
+
+```{r}
+teens$age <- ifelse(teens$age >= 13 & teens$age < 20, teens$age, NA)
+summary(teens$age)
+```
+
+Here we have run a basic ifelse conditional statement against the age feature that instructs R that if age is between 13 and 19, assign the existing age value, otherwise assign NA.
+
+In addressing the NAs, it would be tempting to simply toss them out, but quick observation tells us that if we were to exclude the missing age values (5523/30000) and the missing gender values (2724/30000), we would be exlcuding 8,244 records, or 27% of the data. This is not ideal.
+
+Instead we can apply some basic statistics methods to address the missing values. Going back to our gender feature, we can create dummy coded values for the missing data. Dummy coding involves creating a separate binary valued dummy variable for each level of a nominal categorical feature except one, which is held out to serve as the reference group. The absence of the excluded category can be inferred from the other categories.
+
+For example, if a sample is not female and not unknown, then the individual must be male. In this case, we only need to create dummy variables for female and unknown:
+
+```{r}
+teens$female <- ifelse(teens$gender == "F" & !is.na(teens$gender), 1, 0)
+teens$no_gender <- ifelse(is.na(teens$gender), 1, 0)
+```
+
+Here we have created two new features (female and no_gender) and simply searched the data frame assigning those with gender female as a 1 for the female feature and to the no-gender feature with a value of 1 if the gender is NA.
+
+```{r}
+table(teens$gender, useNA = "ifany")
+table(teens$female, useNA = "ifany")
+table(teens$no_gender, useNA = "ifany")
+```
+
+Comparing the original gender feature to our two new features we can see that we have successfully coded the two new dummay features and removed all missing values.
+
+Moving back to the age feature, we will have to develop another strategy to deal with missing numeric data. It doesn't make sense to dummy code for age as unknown, as an unknown age doesn't demonstrate how it relates to a given value (e.g. how does unknown age compare to 13, 16, 20?). There is no categorical representation that can be replicated using binary values.
+
+Instead we will have to impute the missing data. Imputing is simply using math to find the best possible age value for missing values based in the values of the known feature values. 
+
+It would be easy to simply assign unknown numeric values that mean value for the feature:
+
+```{r}
+mean(teens$age)
+mean(teens$age, na.rm = TRUE)
+```
+
+However we can see from the output that this may be a bit more involved. Since age contains missing values, the mean cannot be found without tossing out the missing values.
+
+Additionally, although we now know the mean age for all students, to drill down further and more accurately impute the missing data we need to aggregate by anothe feature as age can be very impactful for this group.
+
+We can find the mean age by graduation year as a more useful representation for each peer group. R's native aggregate function allows us to easily do so:
+
+```{r}
+aggregate(data = teens, age ~ gradyear, mean, na.rm = TRUE)
+```
+
+We now know how to find the mean age by graduation year; however, the aggregate function returns a data frame where we need a vector to assign back to our original data frame. Fortunately, R contains another function (ave) which returns a vector of group means repeated:
+
+```{r}
+ave_age <- ave(teens$age, teens$gradyear,FUN = function(x) mean(x, na.rm = TRUE))
+```
+
+Finally, we will apply an ifelse conditional to impute missing age values or simply reassign the existing value if it is not NA:
+
+```{r}
+teens$age <- ifelse(is.na(teens$age), ave_age, teens$age)
+summary(teens$age)
+```
+
+From the summary output we now know we have successfully removed the missing values and reassigned appropriately.
+
 ## Train Model
+
+To train our k-means clustering algorithm we will make use of the kmeans() function found within the stats R package. The kmeans() function simply needs a data frame with only numeric values (since it is calculating distance all features must be numeric - there is not inherent distance between categorical values) and the number of clusters to consider.
+
+Lastly, since we are calculating distance we will want to scale our numeric features so that those with a large range of values do not disproportionately impact the model. To do so we will simply list apply the native R scale() function which reaassigns raw values to z-score values.
+
+```{r}
+interests <- teens[5:40]
+interests_z <- as.data.frame(lapply(interests, scale))
+```
+
+Here we have extracted only the numeric features from our original data set and scaled them appropriately. 
+
+Since a great deal of randomization is involved in clustering, we will set a seed value so our results are repeatable. 
+
+The decision of k values or clusters to consider is arbitrary to a degree. It is often defined based on the domain of the subject matter and multiple values are often tested to achieve the best results. For our assessment we will begin with five target clusters based on the consideration that teenagers often fall into one of five basic stereotypes.
+
+```{r}
+set.seed(2345)
+teen_clusters <- kmeans(interests_z, 5)
+```
 
 ## Evaluating Model Performance
 
+Evaluation of an unsupervised method such as clustering is largely subjective and is usually assessed based on real-world performance or the expertise of domain experts. For our purposes we can further examine our model and see if there are any new patterns that emerged.
+
+```{r}
+teen_clusters$size
+```
+
+Such a large disparity in cluster size is somewhat alarming, but does not mean the model should be immediately dismissed. It is often difficult to assess whether these results are pointing to some real insight or simply a matter of a poor fitting model.
+
+The cluster centers provide the coordinates of the centroids for each feature (in our case the term/subject):
+
+```{r}
+teen_clusters$centers
+```
+
+The rows here refer to the five clusters with the values of each column being the average value of frequency in the term across the network profiles. Since the numeric features were scaled, positive numbers refer to the level above the mean value, with negative values referring to those below. A higher positive value indicates that the terms appears quite frequently across that cluster. 
+
+If terms appear to be similarly positive or negative for a subset of terms within that cluster, that indicates a strong pattern that means those terms appear frequently together or are frequently absent in that cluster.
+
+For example, there appears to be a strong pattern in cluster three where there are a number of notable positive values for sports related terms such as: basketball, football, and soccer as well as others. This could mean that cluster three indentifies primarily profiles which relate to individuals with high ineterest in sports. Similarly the fourth cluster has many high positive values for terms such as: hot, sexy, kissed, and dance. This could point to a segment that contains many individuals with a high interest in romantic relationships or subject matter.
+
 ## Improving Model Performance
+
+Since clustering creates new information, a simple way to assess performance of a clustering model is to relate it back to the original information. 
+
+```{r}
+teens$cluster <- teen_clusters$cluster
+teens[1:5, c("cluster", "gender", "age", "friends")]
+```
+
+Here we've assigned each cluster number as a new feature to the original data. By examining the first few records we can see which cluster was found for that sample.
+
+We can go further by aggregating feature to describe a cluster:
+
+```{r}
+aggregate(data = teens, age ~ cluster, mean)
+```
+
+Here we see the mean ages for each cluster.
+
+```{r}
+aggregate(data = teens, female ~ cluster, mean)
+aggregate(data = teens, friends ~ cluster, mean)
+```
+
+Other patterns can also be discovered by relating cluster assignments back to the original data. First we can see the proportion of females for each cluster as well as the mean number of friends for each cluster. It appears that the first and third clusters have the highest number of females as well as highest average number of friends. This could also shed more light on the insight that the first cluster contains many sports related terms and that the third cluster has many intrinsically romantic words.
+
+It stands to reason that a popular student would have on average more friends and a greater interests in sports and dating and the data seem to suppor these assumptions.
+
+To illustrate the clusters, we can plot the results to see how the samples map out spatially:
+
+```{r}
+library(fpc)
+plotcluster(teens[5:40], teens$cluster)
+```
+
+Here we can see that the first and fourth clusters have very widely disbursed samples while the remaining clusters have more tightly coupled groupings. 
+
+## Conclusion
+
+Clustering is a simple to understand but very powerful unsupervised machine learning technique that can discover useful patterns and groupings within data that were previously unseen or unknown. Such insights are often useful for segmenting data samples into logical groups which can be leveraged to provide recommendations to real-world business areas with little to no experience with data mining or machine learning.
+
+K-means is a common and easy to understand clustering technique which assesses and determines homogenity based on distance within a feature space. One can derive useful groupings and intuitively powerful results with only a little data manipulation.
+
+[R Source](hw7.R)
