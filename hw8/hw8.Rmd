@@ -1,0 +1,306 @@
+---
+title: "HW8"
+author: "Mike Lehman"
+date: "November 13, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to examine methods and procedures for evaluating the accuracy of classification models outside of the basic error rate. When performing classification tasks in machine learning, it is not unusual to build a highly accurate predictive model, but still miss the mark when it comes to predicting certain outcomes. For example, a classification model may result in an error rate below 5%, but my score very poorly when predicting true positives or may miss badly and produce a lot of false negatives.
+
+This varying performance across levels may be acceptable for a spam classifier or some other relatively harmless model; however, there may be cases where misclassifiying even just a few cases may be unacceptable, such as a medical diagnosis model or one that attempts to assess the likelihood of a loan default.
+
+To further explore the accuracy of classification models we will be building upon previous assessments that built classifiers for various applications. The first will be a spam filtering classifier which examines raw text data that has been parsed into a sparse matrix to identify message types (ham or spam) using Bayesian probability. The second example will examine a decision tree classifier which attempts to determine the likelihood of a loan default given certain numeric and categorical variables.
+
+## Naive Bayes Spam Classifier Model
+
+We will being with the spam message data. The purpose of this assessment is to take a deep-dive into classification model accuracy, so the complete details of obtaining and cleaning the raw data and building a basic Naive Bayes classifier model will only be discussed briefly.  
+
+The original data set can be found at the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/machine-learning-databases/00228/). The data resides in the .zip file found at this directory. Inside that .zip file is a plain text file that contains 5,574 separate SMS messages. Each message begins with a classification of spam or ham, followed by a tab, then the message text. New messages begin with the classification, with no space following the previous message.
+
+Below are all the steps we need to perform to build our Naive Bayes classifier:
+
+```{r}
+sms_raw <- read.csv("sms_spam.csv", stringsAsFactors = FALSE)
+sms_raw$type <- factor(sms_raw$type)
+
+library(tm)
+sms_corpus <- VCorpus(VectorSource(sms_raw$text))
+sms_corpus_clean <- tm_map(sms_corpus, content_transformer(tolower))
+
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeNumbers)
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeWords, stopwords())
+sms_corpus_clean <- tm_map(sms_corpus_clean, removePunctuation)
+
+sms_corpus_clean <- tm_map(sms_corpus_clean, stemDocument)
+sms_corpus_clean <- tm_map(sms_corpus_clean, stripWhitespace) 
+
+sms_dtm <- DocumentTermMatrix(sms_corpus_clean)
+
+sms_dtm_train <- sms_dtm[1:4169, ]
+sms_dtm_test  <- sms_dtm[4170:5559, ]
+
+sms_train_labels <- sms_raw[1:4169, ]$type
+sms_test_labels  <- sms_raw[4170:5559, ]$type
+
+sms_dtm_freq_train <- removeSparseTerms(sms_dtm_train, 0.999)
+
+sms_freq_words <- findFreqTerms(sms_dtm_train, 5)
+
+sms_dtm_freq_train <- sms_dtm_train[ , sms_freq_words]
+sms_dtm_freq_test <- sms_dtm_test[ , sms_freq_words]
+
+convert_counts <- function(x) {
+  x <- ifelse(x > 0, "Yes", "No")
+}
+
+sms_train <- apply(sms_dtm_freq_train, MARGIN = 2, convert_counts)
+sms_test  <- apply(sms_dtm_freq_test, MARGIN = 2, convert_counts)
+
+library(e1071)
+sms_classifier <- naiveBayes(sms_train, sms_train_labels)
+sms_test_pred <- predict(sms_classifier, sms_test)
+```
+
+In the previous code, we performed a number of preparation steps including removing punctuation and infrequently used words from the messages as well as stemmed each word moved all text to lower case.
+
+We now have a Naive Bayes classifier model and the predictions that this model generated on test data. Using both of these objects we can now being a more in-depth examination of the model's accuracy using a variety of methods.
+
+## Spam Classifier Performance
+
+When examining the results of a classifer model, not all predictions are created equal. For example (in our case), in two cases where the model predicted spam it should not be assumed that each prediction of spam has the same confidence. The model may be 99% certain that one example is spame, but only 51% certain that the other is spam.  
+
+These internal prediction probabilites can shed light on the predictive power of a series of models. Two models may produce the same basic results, but one may make a different type of mistake than the other. 
+
+To obtain the internal prediction probabilites of our model we can run the predict function again, but instead of allowing R to assume a prediction type of "class", we can specify a type of "raw" to obtain the internal prediction probabilities:
+
+```{r}
+sms_test_prob <- predict(sms_classifier, sms_test, type = "raw")
+head(sms_test_prob)
+```
+
+The output shows the model's probabilite percentages for each of the class levels, ham or spam. The two values will always sum to 1 since there are only two possible values. For further analysis we can create a data frame the contains the actual class labels from our test data, the predicted class labels from our classifier as well as the two probabilty percentages using the test probabilites we just calculated:
+
+```{r}
+sms_results <- data.frame(actual_type = sms_test_labels,
+                          predict_type = sms_test_pred,
+                          prob_spam = round(sms_test_prob[ , 2], 5),
+                          prob_ham = round(sms_test_prob[ , 1], 5))
+```
+
+It appears that for the first six cases, the predicted and actual types agree and each prediction has a very strong confidence in its class. Let's see which cases have a much lower confidence with probability percentages between 40 and 60 percent:
+
+```{r}
+head(subset(sms_results, prob_spam > 0.40 & prob_spam < 0.60))
+```
+
+From the output, it looks like the choices between class labels were basically a toss-up. We can also check to see where the model was outright wrong:
+
+```{r}
+head(subset(sms_results, actual_type != predict_type))
+```
+
+Here we see cases where the predicted and actual types differ. Nearly all of these cases are examples where the model was over 95% certain it was correct, but was ultimately wrong.
+
+To get a better understanding of whether these errors were negligible, we can apply a number of different evaluation techniques.
+
+## Confusion Matrices
+
+A confusion matrix is a cross tabulation which assigns values as to whether or not the predicted values match the actual values. The upper-right corner of a confusion matrix are true negative cases where the cases was correctly identified as not the class of interest. The bottom right cell contains true positives, or cases where the class was correctly identified as the class of interest. The other two cells (top right and bottom left) are where the class of interest was incorrectly classified as the class of interest or not.
+
+We can build a simple table based on our classifier's predictions to create a confusion matrix:
+
+```{r}
+table(sms_results$actual_type, sms_results$predict_type)
+```
+
+This basic tables shows the raw values of the class labels, but does not provide the probability percentages or any other details. The gmodels R package allows for easy construction of confusion matrices with more details:
+
+```{r}
+library(gmodels)
+CrossTable(sms_results$actual_type, sms_results$predict_type)
+```
+
+This matrix shows row and columsn totals as well as table totals, which provide overall percentages of class labels, but nothing further as regards accuracy.
+
+A much more detailed, although more difficult to interpret confusion matrix can be built using the caret R pakcage:
+
+```{r}
+library(caret)
+confusionMatrix(sms_results$predict_type, sms_results$actual_type, positive = "spam")
+```
+
+The output shows the basic matrix as well as a number of important matrices. For the contruction of this matrix we also had to specify the positive class whereas we previously did not need to supply this information to build a basic confusion matrix.
+
+An important metric of note is the kappa statistic. The kappa statistic accounts for the possibility that a correct prediction can be obtained by chance alone. For example, a classifier may simply always guess the most frequently occurring class label. 
+
+A higher kappa is better and denotes a model with strong agreement between the model's predictions and actual values. Our kappa of 0.88 is quite excellent.
+
+We can also obtain the kappa statistic directly from the preditions using the vcd package. We need only to supply the actual and predcited types from our results object:
+
+```{r}
+library(vcd)
+Kappa(table(sms_results$actual_type, sms_results$predict_type))
+```
+
+The output here shows weighted and unweighted kappa. Since we have only two values, we can ignore the weighted kappa. This would be useful only in cases with more than two class labels as certain labels may have less variance between them, and in fact our weighted and unweighted values are the same.
+
+Finally, we can find the kappa value even faster using the irr R package:
+
+```{r}
+library(irr)
+kappa2(sms_results[1:2])
+```
+
+Here we only needed ot supply our data frame columns. 
+
+## Sensitivty and Specificity
+
+Sensitivity of a model is the proportion of true positive values in a model's predictions. Specificity is the true negative rate of the predictions. We can find these using caret package and passing our class label actuals and predicted types plus the parameter for positive and negative:
+
+```{r}
+sensitivity(sms_results$predict_type, sms_results$actual_type, positive = "spam")
+specificity(sms_results$predict_type, sms_results$actual_type, negative = "ham")
+```
+
+Values range from 0 to 1 with a higher value being better. However, it is highly unlikely to build a model with perfect values for both and a balance must be found based on the context of the problem at hand.
+
+## Precision and Recall
+
+Precision and recall are two other performance measures for classifier models. Precision is the proportion of positive examples that are truly positive. Recall is defined as the number of true positive cases over the number of positive cases. 
+
+Precision can be found using the caret package again and recall can be found using the same formula as that for sensitivity:
+
+```{r}
+posPredValue(sms_results$predict_type, sms_results$actual_type, positive = "spam")
+sensitivity(sms_results$predict_type, sms_results$actual_type, positive = "spam")
+```
+
+## Visualizing Performance
+
+Two visualize the difference in effectiveness between two models, we can make use of the ROCR R package which contains a number of tools for visual model comparison. This can be extremely useful in assessing where models differ in how they make their mistakes and what kinds of mistakes they make.
+
+First we must create a prediction object which contains the probability measures as percentages as well as the actual class label types:
+
+```{r}
+library(ROCR)
+pred <- prediction(predictions = sms_results$prob_spam, labels = sms_results$actual_type)
+```
+
+Now that we have our object, we can build a ROC (Receiver Operating Characteristic) curve. This visualization plots the difference between the predcited values of the model versus a model that has no predictive value:
+
+```{r}
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+plot(perf, main = "ROC curve for SMS spam filter", col = "blue", lwd = 2)
+abline(a = 0, b = 1, lwd = 2, lty = 2)
+```
+
+To fully assess the quality of the model over that with no predictive power, we must add a line of reference. This line of reference indicates a model which guesses true positives and false positives at the same rate. A perfect model would have a curve that passes through this line at 100 percent positive rate and 0 percent false rate.
+
+A numeric measure of the relationship of the curve to the abline can be found by calculating the AUC (Area Under the Curve). The resulting value will fall between 0 and 1 with the higher value being the better value  To do so we can create a perf object from our prediction:
+
+```{r}
+perf.auc <- performance(pred, measure = "auc")
+str(perf.auc)
+unlist(perf.auc@y.values)
+```
+
+The calculated AUC value of 0.983 indicates strong performance, but it would be best to continue to create different models and use all of the above methods to find the performance measures and find the trade-off between performance, efficiency, and accuracy.
+
+## Estimating Future Performance
+
+The ultimate verdict on predictive model performance is how the model performs against unseen data. Holdout methods are typically used where a portion of the data set is held out for testing after building a model on training data.
+
+However, it is often most effective to introduce yet a third data set, a validation data set where a model built on the training data is tested and improved upon before seeing the test data. This prevents trained models from becoming unduly influenced by the test data set. A typical split would follow a 505 (train), 25% (validation), and 25% (test) distribution.
+
+We can make use of R's native random number generation to create such data sets. We will be making use of the German credit data set which seeks to predict loan defaults. An introduction to the data follows.
+
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
+
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
+
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+To being we will read the credit data into an R data frame and create our random integer sets.
+
+```{r}
+credit <- read.csv("credit.csv")
+
+random_ids <- order(runif(1000))
+credit_train <- credit[random_ids[1:500],]
+credit_validate <- credit[random_ids[501:750], ]
+credit_test <- credit[random_ids[751:1000], ]
+```
+
+The biggest issue with the above method is that we have no way of knowing the distribution of the class attribute, default. The test set may have far more no values for default than the train and the validation may have few if any. 
+
+To overcome this problem we can utilize the crate R package which uses the createDatPartition function to create a stratified random sample where each sample contains the same proportions of class labels:
+
+```{r}
+in_train <- createDataPartition(credit$default, p = 0.75, list = FALSE)
+credit_train <- credit[in_train, ]
+credit_test <- credit[-in_train, ]
+```
+
+We supplied the 0.75 value for p to specify the proportion (75%) of the distribution. The train object contains all rows in the in-train object and the test contains those that are not in the in-train object. This stratified sample gets us closer to a good strategy, but does not guarantee that variables other than the target class are evenly disributed.
+
+Repeated holdout is a method to overcome the problem of uneven attribute distribution. Repeated holdout seeks to find the average result from several random holdout samples.
+
+K-fold Cross Validation goes one step further  by dividing the data into k completely separate random sample partitions called folds. This prevents the same record from being used more than once in a repeated holdout approach.
+
+The industry standard for the k value in folds is to use a value of 10. In this scenario, for each of the 10 folds (which comprise 10% of the data) a model is built on the remaining 90%. The fold's 10% of records are then used for evaluation.
+
+The caret package allows us to easily created 10 distinct folds from the credit data:
+
+```{r}
+folds <- createFolds(credit$default, k = 10)
+str(folds)
+credit01_test <- credit[folds$Fold01, ]
+credit01_train <- credit[-folds$Fold01, ]
+```
+
+We now have to create 10 different sets of train and test data using each fold one-by-one. We can do this in a much more efficient way by using a custom fucntion.
+
+First we will create ten separate folds:
+
+```{r}
+set.seed(123)
+folds <- createFolds(credit$default, k = 10)
+```
+
+Next we will create our custom function. This function will list apply a number of steps to each fold. First it will create train and test data sets based in the fold number. Then it will train a C5.0 decision tree on the train data and generate a prediction on the test data set. Finally the function will capture the actual class labels from the test data set and calculate the kappa statistic for the instance's model:
+
+```{r}
+library(C50)
+cv_results <- lapply(folds, function(x) {
+  credit_train <- credit[-x, ]
+  credit_test <- credit[x, ]
+  credit_model <- C5.0(default ~ ., data = credit_train)
+  credit_pred <- predict(credit_model, credit_test)
+  credit_actual <- credit_test$default
+  kappa <- kappa2(data.frame(credit_actual, credit_pred))$value
+  return(kappa)
+})
+str(cv_results)
+```
+
+For each fold we have applied our custom function and stored the kappa statisitcs in a list. To complete a 10-fold cross validtion we finally need to find the mean of the list of values. Note that to do so we must temporarily remove the results from the list data structure and pass only a numeric vector:
+
+```{r}
+mean(unlist(cv_results))
+```
+
+The relatively low mean kappa statisitic informs us that our model does not perform much better than random chance.
+
+## Conclusion
+
+We explored a number of different statistical measures which can be used to assess the accuracy of a classifer model. It is important to find such measures to assess the true accuracy of a model. Even more so, these measures help to compare multiple models to see how their performances differ even if they produce similar raw results when comparing predicted to actual values.
+
+Similarly, we also explored strategies and methods for overcoming the inherent biases and issues with random sampling when creating train and test data sets. By using more in-depth holdout methods we learned how to created stratified as well as more indepdenent cross validated sub sets that allow for succinct model comparison.
+
+[R Source](hw8.R)
