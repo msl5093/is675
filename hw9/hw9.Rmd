@@ -1,0 +1,59 @@
+---
+title: "HW9"
+author: "Mike Lehman"
+date: "November 15, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to explore various strategies and methods for improving the performance of machine learning models. A single machine learning model, built in a a vacuum by itself will often not perform well against new or unseen data. Despite superior performance against its own test data, there is still a strong likelihood that the model is overfitting the data set in certain areas, or at the very least that the model will not be able to identify more nuanced or hidden patterns in unknown data.
+
+To explore the different strategies for improving model performance we will examine two key concepts: model performance tuning in general, and ensemble learning methods which seek to overcome the flaws of one inherently weak model by creating models built from multiple learners.
+
+The German credit data set will be used to explore model performance improvements. The goal of all of the models is to predict the likelihood of a creidt default (class variable with two possible outcomes - yes/no) based on a number of numeric and categorical input variables.
+
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
+
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
+
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:
+
+```{r}
+credit <- read.csv("credit.csv")
+library(caret)
+```
+
+The caret R package will be used extensively for this assessment, so have loaded it in addition to reading our data set into R.
+
+## Model Tuning
+
+We will begin our discussion of improving model performance by creating a single model, but will build the model using a more extensible method which allows for performance adjustments.
+
+The caret package contains a robust train() function which allows for setting a grid of tuning parameters prior to classification. The function will fit multiple models using a variety of input parameters, bootstrap examples, and will select the best model based on performance.
+
+To begin, we will build a simple C5.0 decision tree using the credit data with the default attribute as the target class label:
+
+```{r}
+set.seed(300)
+m <- train(default ~ ., data = credit, method = "C5.0")
+m
+```
+
+
+
+## Ensemble Learning
+
+### Bagging
+
+### Boosting
+
+### Random Forests
+
+## Conclusion

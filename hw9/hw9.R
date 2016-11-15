@@ -1,12 +1,10 @@
 credit <- read.csv("credit.csv")
 library(caret)
 
-## Creating a simple tuned model ----
+# Model Tuning
 # automated parameter tuning of C5.0 decision tree 
 set.seed(300)
 m <- train(default ~ ., data = credit, method = "C5.0")
-
-# summary of tuning results
 m
 
 # apply the best C5.0 candidate model to make predictions
@@ -33,6 +31,8 @@ grid
 set.seed(300)
 m <- train(default ~ ., data = credit, method = "C5.0", metric = "Kappa", trControl = ctrl, tuneGrid = grid)
 m
+
+# Ensemble Learning
 
 ## Bagging ----
 # Using the ipred bagged decision trees
