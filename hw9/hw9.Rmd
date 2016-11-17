@@ -46,11 +46,91 @@ m <- train(default ~ ., data = credit, method = "C5.0")
 m
 ```
 
+From the ouput of our model object we can see the details of the various models that were built as well as some basic details about the type of learning method. The train() function considered our 1000 samples with 16 predictor variables to determine the value of the class label default.
 
+No pre-processing of data was completed so we can make note of the fact that our features were left unchanged, which is useful information to have when considering further model improvement. For random sampling the function used bootstrapped sampling with 25 reps, the default value. 
+
+The function provides details of ten models which were built during the training process. Two metrics are provided to assess model performance, accuracy and the kappa statistic. The output also provide how many trials were tested to find the better of weaker learners through adaptive boosting. The details for each model also indicate whether predictor winnowing (feature selection) was used and the type of model, rules based or a decision tree. 
+
+Finally, the output also tells us which model was selected as the optimally performing model, the evaluation criteria used to select the optimal model, and the details for that model. Based on our output, it appears that the function determined a tree based model with 20 trials and a winnow value of false is the best performing model, and that the accuracy metric was used to determine model selection.
+
+The model object we created: "m", contains a wealth of additional information, and to make predictions using this set of models, we only need to pass the object itself into R's predict() function, and it will consider the optimal model without requiring any parameters:
+
+```{r}
+p <- predict(m, credit)
+table(p, credit$default)
+```
+
+We can examine the performance of the model by building a quick confusion matrix table. To dive even further, we can examine the raw class labels the model predicted as well as the probability measures for each sample:
+
+```{r}
+# predicted classes
+head(predict(m, credit, type = "raw"))
+# predicted probabilities
+head(predict(m, credit, type = "prob"))
+```
+
+It would appear that our model has performed flawlessly; however, the same data set was used to train the model as well as make predictions, so unfortunately there is still much work to do.
+
+### Customized Model Tuning
+
+Our out-of-the-box caret based C5.0 decision tree model builder produced good results, but that was a series of models built on the same set of data that was used for predictions with no substantive resampling strategy outside of the default.
+
+To further improve our caret based model tuning strategy we can supply additional parameters. First, we can define the resampling method by creating a control object using the caret function trainControl(). 
+
+```{r}
+ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "oneSE")
+```
+
+Here we have initialized a trainControl object that specifies the resampling strategy we will use. The type of resampling is a cross-validation resampling method with a value (number) of 10 folds. Additionally, we supplied a value for selectionFunction which specifies the tuning parameter. A value of "oneSE" means that our algorithm will select the optimal model by finding the simplest model within one standard error of the best optimal model. Using the oneSE rule, we can protect against overfitting by selecting a simpler model that is still close to the best performing model which likely overfit the data due to its complexity. 
+
+Next, we can set a grid of tuning parameters to furter customize the tuning of our model builder. This grid will include options such as the model type to build, boosting parameters (in our case number of trials), and value for winnow:
+
+```{r}
+grid <- expand.grid(.model = "tree", .trials = c(1, 5, 10, 15, 20, 25, 30, 35), .winnow = "FALSE")
+grid
+```
+
+The result of creating an object using: expand.grid means that we now have a data frame of parameters to further instruct our model builder.
+
+Now that we have our trainControl and grid objects, we can build our train() function again, this time passing our parameterized objects to the function. In addition to providing our control and grid objects, we will also specify the evaluation metric for model selection, in this case the kappa statistic:
+
+```{r}
+set.seed(300)
+m <- train(default ~ ., data = credit, method = "C5.0", metric = "Kappa", trControl = ctrl, tuneGrid = grid)
+m
+```
+
+From the new output we can see the function made use of cross validation with 10 folds for resampling and built the various models with the parameters we supplied. Finally, the we can also see the model selection recap.
 
 ## Ensemble Learning
 
+So far we have been working on tuning the performance of a single model and using the best possible model on its own. This single model may perform well against unseen data in some applications, but is very likely to suffer from a degree of bias and overfitting. 
+
+Far better model performance can be achieved by combining multiple models (which more perform poorly individually) together through various methods to find an aggregate model with better predictive performance.
+
 ### Bagging
+
+Bootstrap aggergating, or bagging, involves building multiple models, then having those models vote on a decision with equal weight given to each model. To further deepen the variance of the models, bagging also involves randomly drawing a subset of the training data for each model to use, then performing a final evaluation on the unseen test data. 
+
+Since each model sees a different subset of the data, it is likely to learn or find patterns that were missed by another model. Because decision trees are highly susceptible to changes in input features, bagging is a highly recommended strategy for tuning such models.
+
+To build a bagged decision tree model we will make use of the ipred R package. Similar to the caret train() function, we can begin by supplying only a few parameters to a function, bagging(). To start we will instruct the function of our target feature and allow it to consider all other features during training. Lastly, we will specify the number of bagging iterations for random resampling, in this case 25. 
+
+```{r}
+library(ipred)
+set.seed(300)
+mybag <- bagging(default ~ ., data = credit, nbagg = 25)
+```
+
+To evaluate the performance of our bagged decision tree, we can pass our bagged model to R's predict function and examine the results in a basic confusion matrix:
+
+```{r}
+credit_pred <- predict(mybag, credit)
+table(credit_pred, credit$default)
+```
+
+
 
 ### Boosting
 

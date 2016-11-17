@@ -1,30 +1,23 @@
 credit <- read.csv("credit.csv")
 library(caret)
 
-# Model Tuning
-# automated parameter tuning of C5.0 decision tree 
+## Model Tuning
 set.seed(300)
 m <- train(default ~ ., data = credit, method = "C5.0")
 m
 
-# apply the best C5.0 candidate model to make predictions
 p <- predict(m, credit)
 table(p, credit$default)
 
-# obtain predicted classes
+# predicted classes
 head(predict(m, credit, type = "raw"))
-
-# obtain predicted probabilities
+# predicted probabilities
 head(predict(m, credit, type = "prob"))
 
-## Customizing the tuning process ----
-# use trainControl() to alter resampling strategy
+### Customized Model Tuning
 ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "oneSE")
 
-# use expand.grid() to create grid of tuning parameters
 grid <- expand.grid(.model = "tree", .trials = c(1, 5, 10, 15, 20, 25, 30, 35), .winnow = "FALSE")
-
-# look at the result of expand.grid()
 grid
 
 # customize train() with the control list and grid of parameters 
@@ -32,13 +25,14 @@ set.seed(300)
 m <- train(default ~ ., data = credit, method = "C5.0", metric = "Kappa", trControl = ctrl, tuneGrid = grid)
 m
 
-# Ensemble Learning
+## Ensemble Learning
+## Bagging
 
-## Bagging ----
-# Using the ipred bagged decision trees
+# ipred bagged decision trees
 library(ipred)
 set.seed(300)
 mybag <- bagging(default ~ ., data = credit, nbagg = 25)
+
 credit_pred <- predict(mybag, credit)
 table(credit_pred, credit$default)
 
@@ -60,13 +54,12 @@ set.seed(300)
 svmbag <- train(default ~ ., data = credit, "bag", trControl = ctrl, bagControl = bagctrl)
 svmbag
 
-## Boosting ----
-
-## Using C5.0 Decision Tree (not shown in book)
+## Boosting
+# Using C5.0 Decision Tree (not shown in book)
 library(C50)
 m_c50_bst <- C5.0(default ~ ., data = credit, trials = 100)
 
-## Using AdaBoost.M1
+# Using AdaBoost.M1
 library(adabag)
 
 # create a Adaboost.M1 model
@@ -85,7 +78,7 @@ adaboost_cv$confusion
 library(vcd)
 Kappa(adaboost_cv$confusion)
 
-## Random Forests ----
+## Random Forests
 # random forest with default settings
 library(randomForest)
 set.seed(300)

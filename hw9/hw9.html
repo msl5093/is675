@@ -125,9 +125,87 @@ $(document).ready(function () {
 
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
+<p>The goal of this assessment is to explore various strategies and methods for improving the performance of machine learning models. A single machine learning model, built in a a vacuum by itself will often not perform well against new or unseen data. Despite superior performance against its own test data, there is still a strong likelihood that the model is overfitting the data set in certain areas, or at the very least that the model will not be able to identify more nuanced or hidden patterns in unknown data.</p>
+<p>To explore the different strategies for improving model performance we will examine two key concepts: model performance tuning in general, and ensemble learning methods which seek to overcome the flaws of one inherently weak model by creating models built from multiple learners.</p>
+<p>The German credit data set will be used to explore model performance improvements. The goal of all of the models is to predict the likelihood of a creidt default (class variable with two possible outcomes - yes/no) based on a number of numeric and categorical input variables.</p>
+<p>The original German credit data set can be found at the <a href="http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29">UCI Machine Learning Repository</a>. At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric.</p>
+<p>The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.</p>
+<p>The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv) is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.</p>
+<p>credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:</p>
+<pre class="r"><code>credit &lt;- read.csv(&quot;credit.csv&quot;)
+library(caret)</code></pre>
+<pre><code>## Warning: package 'caret' was built under R version 3.3.2</code></pre>
+<pre><code>## Loading required package: lattice</code></pre>
+<pre><code>## Loading required package: ggplot2</code></pre>
+<p>The caret R package will be used extensively for this assessment, so have loaded it in addition to reading our data set into R.</p>
 </div>
 <div id="model-tuning" class="section level2">
 <h2>Model Tuning</h2>
+<p>We will begin our discussion of improving model performance by creating a single model, but will build the model using a more extensible method which allows for performance adjustments.</p>
+<p>The caret package contains a robust train() function which allows for setting a grid of tuning parameters prior to classification. The function will fit multiple models using a variety of input parameters, bootstrap examples, and will select the best model based on performance.</p>
+<p>To begin, we will build a simple C5.0 decision tree using the credit data with the default attribute as the target class label:</p>
+<pre class="r"><code>set.seed(300)
+m &lt;- train(default ~ ., data = credit, method = &quot;C5.0&quot;)</code></pre>
+<pre><code>## Loading required package: C50</code></pre>
+<pre><code>## Loading required package: plyr</code></pre>
+<pre class="r"><code>m</code></pre>
+<pre><code>## C5.0 
+## 
+## 1000 samples
+##   16 predictor
+##    2 classes: 'no', 'yes' 
+## 
+## No pre-processing
+## Resampling: Bootstrapped (25 reps) 
+## Summary of sample sizes: 1000, 1000, 1000, 1000, 1000, 1000, ... 
+## Resampling results across tuning parameters:
+## 
+##   model  winnow  trials  Accuracy   Kappa    
+##   rules  FALSE    1      0.6847204  0.2578421
+##   rules  FALSE   10      0.7112829  0.3094601
+##   rules  FALSE   20      0.7221976  0.3260145
+##   rules   TRUE    1      0.6888432  0.2549192
+##   rules   TRUE   10      0.7113716  0.3038075
+##   rules   TRUE   20      0.7233222  0.3266866
+##   tree   FALSE    1      0.6769653  0.2285102
+##   tree   FALSE   10      0.7222552  0.2880662
+##   tree   FALSE   20      0.7297858  0.3067404
+##   tree    TRUE    1      0.6771020  0.2219533
+##   tree    TRUE   10      0.7173312  0.2777136
+##   tree    TRUE   20      0.7285714  0.3058474
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final values used for the model were trials = 20, model = tree
+##  and winnow = FALSE.</code></pre>
+<p>From the ouput of our model object we can see the details of the various models that were built as well as some basic details about the type of learning method. The train() function considered our 1000 samples with 16 predictor variables to determine the value of the class label default.</p>
+<p>No pre-processing of data was completed so we can make note of the fact that our features were left unchanged, which is useful information to have when considering further model improvement. For random sampling the function used bootstrapped sampling with 25 reps, the default value.</p>
+<p>The function provides details of ten models which were built during the training process. Two metrics are provided to assess model performance, accuracy and the kappa statistic. The output also provide how many trials were tested to find the better of weaker learners through adaptive boosting. The details for each model also indicate whether predictor winnowing (feature selection) was used and the type of model, rules based or a decision tree.</p>
+<p>Finally, the output also tells us which model was selected as the optimally performing model, the evaluation criteria used to select the optimal model, and the details for that model. Based on our output, it appears that the function determined a tree based model with 20 trials and a winnow value of false is the best performing model, and that the accuracy metric was used to determine model selection.</p>
+<p>The model object we created: “m”, contains a wealth of additional information, and to make predictions using this set of models, we only need to pass the object itself into R’s predict() function, and it will consider the optimal model without requiring any parameters:</p>
+<pre class="r"><code>p &lt;- predict(m, credit)
+table(p, credit$default)</code></pre>
+<pre><code>##      
+## p      no yes
+##   no  700   2
+##   yes   0 298</code></pre>
+<p>We can examine the performance of the model by building a quick confusion matrix table. To dive even further, we can examine the raw class labels the model predicted as well as the probability measures for each sample:</p>
+<pre class="r"><code># predicted classes
+head(predict(m, credit, type = &quot;raw&quot;))</code></pre>
+<pre><code>## [1] no  yes no  no  yes no 
+## Levels: no yes</code></pre>
+<pre class="r"><code># predicted probabilities
+head(predict(m, credit, type = &quot;prob&quot;))</code></pre>
+<pre><code>##          no        yes
+## 1 0.9606970 0.03930299
+## 2 0.1388444 0.86115561
+## 3 1.0000000 0.00000000
+## 4 0.7720279 0.22797208
+## 5 0.2948062 0.70519385
+## 6 0.8583715 0.14162851</code></pre>
+<p>It would appear that our model has performed flawlessly; however, the same data set was used to train the model as well as make predictions, so unfortunately there is still much work to do.</p>
+<div id="customized-model-tuning" class="section level3">
+<h3>Customized Model Tuning</h3>
+</div>
 </div>
 <div id="ensemble-learning" class="section level2">
 <h2>Ensemble Learning</h2>
