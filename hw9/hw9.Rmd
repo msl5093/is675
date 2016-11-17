@@ -61,7 +61,7 @@ p <- predict(m, credit)
 table(p, credit$default)
 ```
 
-We can examine the performance of the model by building a quick confusion matrix table. To dive even further, we can examine the raw class labels the model predicted as well as the probability measures for each sample:
+We can examine the performance of the model by building a quick confusion matrix table. To dive even further, we can seethe raw class labels the model predicted as well as the probability measures for each sample:
 
 ```{r}
 # predicted classes
@@ -130,10 +130,102 @@ credit_pred <- predict(mybag, credit)
 table(credit_pred, credit$default)
 ```
 
+These results are quite encouraging. It is unrealistic to expect this accuracy against unknown data, but such performance against the training data is optimistic. To see how a bagged decision tree model would work against unknown data, we can take advantage or the caret package as earilier using updated inputs:
 
+```{r}
+set.seed(300)
+ctrl <- trainControl(method = "cv", number = 10)
+train(default ~ ., data = credit, method = "treebag", trControl = ctrl)
+```
+
+The kapp statistic tells us that a 10-fold cross-validated bagged tree model performs at least as well as our tuned single C5.0 model from earlier in the assessment.
+
+An ensemble method such as bagging is not limited to decision tree learners. We can apply its concepts to any number of machine learning methods.
 
 ### Boosting
 
+While bagging is concerned with building multiple learners and taking a consensus among the models to make predictions, boosting is a similar ensemble learning method but with a different goal. Where bagging is designed to reduce variance and traing different models by changing up the feature selection, boosting is primarily concerned with creating new models that have learned from the mistakes of previous models. 
+
+Boosting, in general, is designed to reduce bias more so than variance. Because of this it is possible that a boosted model will outperform a bagged model, but a boosted model is more suscetpible to overfitting.
+
+Adaptive boosting as a concept involves generating weaker learners that iteratively learn from more difficult to classify examples by paying more attention to the misclassified examples. The process beings with a single classifier built on the training data. Correctly classified examples are then removed from the data set and the model building process begins again with primarily misclassified examples and continues until a minimum error threshold is reached our performance no longer improves.
+
+AdaBoost.M1 is a decision tree based implementation of adaptive boosting and can be used in R through the adabag package.
+
+To begin we will simply pass our features and data set into the boosting() function in the adabag package:
+
+```{r}
+library(adabag)
+set.seed(300)
+m_adaboost <- boosting(default ~ ., data = credit)
+```
+
+Now that we have our boosted tree model, we can run it against the predict() function:
+
+```{r}
+p_adaboost <- predict(m_adaboost, credit)
+```
+
+The object created using adabag creates an object of various data as opposed to single vector or data frame of predictions. We can access these values in the same way we would an R data frame:
+
+```{r}
+head(p_adaboost$class)
+p_adaboost$confusion
+```
+
+Here we can see the class variable contains predicted class values, and the confusion variable contains a basic confusion matrix. 
+
+The perfect predictive performance is somewhat misleading. Because adaptive boosting can continue iterating until the error rate reaches zero, the model simply continuted working on the training data until it eliminated all errors. This likely means overfitting.
+
+For a more accurate measure of performance, we can apply random sampling again through cross-validation using 10 folds, the standard fold level for cross-validation. The adabag package includes this feature and makes it quite easily available:
+
+```{r}
+set.seed(300)
+adaboost_cv <- boosting.cv(default ~ ., data = credit)
+adaboost_cv$confusion
+```
+
+These are much more useful and realistic classification results. To obtain a more useful numeric quantification of our model we can use the vcd package to obtain the kappa statistic underlying the confusion matrix:
+
+```{r}
+library(vcd)
+Kappa(adaboost_cv$confusion)
+```
+
+Throught the use of 10-fold cross validation and adaptive boosting, we have managed to achieve the highest kappa number so far.
+
 ### Random Forests
+
+An additional ensemble learning technique for decision tree models that combine bootstrap aggregating with random feature selection, are random forests. Random forest implementations build a number of decision trees through random feature selection, then take a vote that is the mode of the predicted classes. Random forests can also be used in regression analysis where the mean prediction is used.
+
+The randomForest package for R allows for easy training of a basic Random Forest learner:
+
+```{r}
+library(randomForest)
+set.seed(300)
+rf <- randomForest(default ~ ., data = credit)
+rf
+```
+
+The default randomForest() function will train 500 trees that consider random features at each split. To determine the number of features at each split, a value can be specified that by default is the square root of all the features in the data set.
+
+Once again, we can improve the performance of our basic Random Forest through use of caret's train() function. As before, we will create control and grid objects to fine tune the Random Forest
+
+```{r}
+# set repeated cross-validation for random sampling, repated 10 times over 10 folds
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+# set mtry values to set the number of features considered to each split
+grid_rf <- expand.grid(.mtry = c(2, 4, 8, 16))
+```
+
+Now that we have set our tuning options, we can apply the train() function again, this time specifying a Random Forest model (rf) with the kappa statistic as the evaluation metric for optimal model selection and passing our grid and control parameters:
+
+```{r}
+set.seed(300)
+m_rf <- train(default ~ ., data = credit, method = "rf", metric = "Kappa", trControl = ctrl, tuneGrid = grid_rf)
+m_rf
+```
+
+The algorithm 
 
 ## Conclusion

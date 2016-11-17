@@ -37,12 +37,16 @@ credit_pred <- predict(mybag, credit)
 table(credit_pred, credit$default)
 
 # estimate performance of ipred bagged trees
-library(caret)
 set.seed(300)
 ctrl <- trainControl(method = "cv", number = 10)
 train(default ~ ., data = credit, method = "treebag", trControl = ctrl)
 
-# Using caret's more general bagging function
+
+#############################################
+##################
+#svmBag portions left out due to caret/R version related errors
+
+# general caret bagging function
 # create a bag control object using svmBag
 str(svmBag)
 svmBag$fit
@@ -53,23 +57,20 @@ bagctrl <- bagControl(fit = svmBag$fit, predict = svmBag$pred, aggregate = svmBa
 set.seed(300)
 svmbag <- train(default ~ ., data = credit, "bag", trControl = ctrl, bagControl = bagctrl)
 svmbag
+##################
+#############################################
 
 ## Boosting
-# Using C5.0 Decision Tree (not shown in book)
-library(C50)
-m_c50_bst <- C5.0(default ~ ., data = credit, trials = 100)
-
-# Using AdaBoost.M1
-library(adabag)
-
 # create a Adaboost.M1 model
+library(adabag)
 set.seed(300)
 m_adaboost <- boosting(default ~ ., data = credit)
+
 p_adaboost <- predict(m_adaboost, credit)
 head(p_adaboost$class)
 p_adaboost$confusion
 
-# create and evaluate an Adaboost.M1 model using 10-fold-CV
+# 10-fold cv
 set.seed(300)
 adaboost_cv <- boosting.cv(default ~ ., data = credit)
 adaboost_cv$confusion
@@ -85,10 +86,9 @@ set.seed(300)
 rf <- randomForest(default ~ ., data = credit)
 rf
 
-library(caret)
+# set repeated cross-validation for random sampling, repated 10 times over 10 folds
 ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
-
-# auto-tune a random forest
+# set mtry values to set the number of features considered to each split
 grid_rf <- expand.grid(.mtry = c(2, 4, 8, 16))
 
 set.seed(300)
