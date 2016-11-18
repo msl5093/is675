@@ -226,6 +226,31 @@ m_rf <- train(default ~ ., data = credit, method = "rf", metric = "Kappa", trCon
 m_rf
 ```
 
-The algorithm 
+The algorithm will generate a series of Random Forest models with repated 10-fold cross-validation as the resampling strategy based on our control parameters. Because we assigned a vector of values to the mtry parameter through our grid object the algorithm will also use a few different values for random feature selection will building the forests.
+
+Based on the results, it appears that the model with a value of 16 for random feature selection produced the best scoring model based on the highest kappa value: 0.362.
+
+Once again we have achieved the highest kappa statistic value so far using Random Forest's version of bagging and random feature selection along with repeated cross-validation over 10-folds.
+
+For comparison's sake, taking what we have learned about adaptive boosting, we can revisit our C5.0 decision tree model from the beginning of the assessment and apply some basic boosting techniques to see how it compares to our Randm Forest model.
+
+To set our tuning parameters we can construct another grid that will inform the train() function our model type will be a decision tree with trail levels of 10, 20, 30, and 40, and a winnow value of FALSE. Running multiple trials is a basic boosting technique for decision trees where multiple trees are built on the same set of features and a vote is taken as to the ultimate class label. This differs slightly from a Random Forest where random feature selection is part of the strategy.
+
+```{r}
+grid_c50 <- expand.grid(.model = "tree", .trials = c(10, 20, 30, 40), .winnow = "FALSE")
+set.seed(300)
+m_c50 <- train(default ~ ., data = credit, method = "C5.0", metric = "Kappa", trControl = ctrl, tuneGrid = grid_c50)
+m_c50
+```
+
+The kappa performance for a boosted C5.0 decision tree did not beat our Random Forest model, but did perform admirably. The biggest advantage with a Random Forest is that random feature selection can mitigate overfitting which could be an explanation as to why a simple boosted C5.0 tree did not perform quite as well.
 
 ## Conclusion
+
+Improving machine learning models through performance tuning can be achieved through a number of different means. We began by exploring basic strategies for tuning a single model such as bootstrap sampling to randomize the data sets exposed to the model builder. Additionally, we added resampling methods such as cross-validation to further improve out-of-the-box decision tree model performance.
+
+To expoound on performance tuning even further, we explored two important concepts in machine learning performance: bagging and boosting. Bagging and boosting are ensemble learning methods which seek to overcome the relatively weak perforamce of a single model by aggregating multiple models in different ways. Additionally, we explored the ensemble method of Random Forests, which are themselves a form of bootstrap aggregating (bagging).
+
+Our results indicated that for this particular problem, a Random Forest model is most likely to provide the best possible results. It is important to note however that optimal model selection and performance is highly correlated to the problem at hand, and that ultimately the decision on which machine learning model to select for use against unknown, real-world data is highly dependent on the problem at hand.
+
+[R Source](hw9.R)
