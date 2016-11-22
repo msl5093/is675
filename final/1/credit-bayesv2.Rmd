@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Introduction
@@ -27,13 +27,11 @@ The original german.data file has been heavily modified to make our assessment e
 
 credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:
 
-```{r, include=FALSE}
+```{r}
 library(e1071)
 library(gmodels)
 library(caret)
-```
 
-```{r}
 credit <- read.csv("credit.csv")
 str(credit)
 ```
