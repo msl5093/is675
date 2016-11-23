@@ -34,25 +34,7 @@ credit <- read.csv("credit.csv")
 str(credit)
 ```
 
-Let's examine a few of the features that sounds as though they may be good inidcators of whether a person will default on a loan and see the relationships:
-
-```{r}
-library(car)
-scatterplot(credit$amount ~ credit$months_loan_duration | credit$default)
-scatterplot(credit$amount ~ credit$age | credit$default)
-```
-
-Here we've constructed two scatterplots using loan amounts as the y-axis variable and months loan duration and age as the two x-axis values. We've also included the default class variable to see the distribution of the class values along these parameters.
-
-From the two scatterplots, it appears that defaults are randomly scattered across loan amounts and loan durations as well as the age of the individual. Let's also take a look at the distribution of loan amounts relative to the duration of the loan:
-
-```{r}
-boxplot(amount ~ months_loan_duration, data = credit, main="Credit Data", xlab = "months_loan_duration", ylab = "amount")
-```
-
-It appears that as loan durations increase, the amounts of loans increase as well. There also appear to be some outliers of extreme high or low loan values for a given duration. This tells us that loan amounts and durations have a strong correlation and may be of some use when building our classifier
-
-Now that we've taken a cursory look at some of the relationships between the data points, there is some cleaning of the data that needs to be done before building a kNN classifier. First, kNN models are highly susceptible to large ranges in values for variables. 
+kNN models are highly susceptible to large ranges in values for variables. We can see the range of the existing numeric variables:
 
 ```{r}
 summary(credit[sapply(credit, is.numeric)]) 

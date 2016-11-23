@@ -1,0 +1,391 @@
+---
+title: 'Final - #1'
+author: "Mike Lehman"
+date: "November 23, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+## Introduction
+
+The goal of this assessment is to compare two different machine learning classification models and their performance against the same data set. The two methods being examined are both well suited for classification tasks, but take much different approaches to classifying examples.
+
+Naive Bayes classifiers are simple but powerful models for assigning class labels to instances represented as a vector of feature values. Naive Bayes are known as such, as they are based on Bayesian probability and also assume that the value of a feature is indepdendent of the value of any other feature within the vector. Although Bayesion probability is often used, Naive Bayes classifiers can also apply non-Bayesian probability measures such as maximum-likelihood.
+
+The implementation we will use can found in e1071 R package uses posterior probability. In short, posterior probability is the conditional probability of a value based on the study of previous examples and given another event with the same conditions occurred previously.
+
+In a kNN analysis the methodology is to plot samples (training data points) within a two-dimensional feature space. The algorithm plots all known cases based on the training data during the training phase and then during the classification phase, attempts to classify an unknown feature value by plotting it within the same space and determining the closest known class feature value based on one of many possible distance formulae.
+
+The distance between points typically is the straigh line path between the points and mostt commonly this distance is calculated using Euclidean distance. Other alternatives include Manhattan distance. The algorithm we will use applies Euclidean distance to determine proximity. Once distance is calculated, the algorithm considers the closest number of nearby points based on a pre-determined amount of points to select as decided by the user.
+
+The closest points are the nearest neighbors in a kNN algorithm, where k represents the number of nearest neighbors to consider.
+
+```{r include=FALSE}
+library(e1071)
+library(class)
+library(gmodels)
+library(car)
+library(caret)
+```
+
+## German Credit Data
+
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
+
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
+
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+## Naive Bayes
+
+### Train Model
+
+The original German credit data set can be found at the [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml/datasets/Statlog+%28German+Credit+Data%29). At this page you will find a link for the Data Folder. Inside that folder there are several files. There are two files of note here: german.data and german.data-numeric. 
+
+The german.data file contains categorical/symbolic attributes. The german.data-numeric file contains the same data, but represented numerically with all categorical values coded as integers. More details can be found in the german.doc file located in the same directory.
+
+The original german.data file has been heavily modified to make our assessment easier and keep the focus on modeling and learning from the data. Each of the symbolic attributes (e.g. A11) have been converted to display/contain what each symbol represents. For example, A11 corresponds to a checking balance with less than 0 DM (German Deutsche Marks). The process to convert that data to our format has been handled for us ahead of time such that the file we will use (credit.csv)  is much easier to understand. Each of the 1000 observations from german.data are contained in credit.csv.
+
+credit.csv is a modifed version of the german.data that contains 17 of the original 20 features found in german.data:
+
+```{r}
+credit <- read.csv("credit.csv")
+str(credit)
+```
+
+Looking at the data, we have a mix of factor and numeric/intger variables. Our Naive Bayes model will assess the default class value based on previous instances of other features and their relationship to the default class value. Because some of these numeric variables are continuous, the likelihood of the exact same value occurring frequently is probably quite low. This could have an impact on the performance of our model. 
+
+For now, we will leave all the variable types and values untouched and build our first classifier to establish a baseline.
+
+We will set a seed value so that our results are reproducible and randomize train and test data sets reserving 90% for training and leaving 10% for testing:
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample,]
+credit_test <- credit[-train_sample,]
+```
+
+Before continuing, we'll want to double-check to make sure our train and test data sets have roughly even amounts of both possible values for default:
+
+```{r}
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+The proportions are close enough to continue by assigning the corresponding train and test class labels to their own lists:
+
+```{r}
+credit_train_labels <- credit_train[,"default"]
+credit_test_labels <- credit_test[,"default"]
+```
+
+To build our classifier we will make use of the naiveBayes() function in the e1071 R package. As mentioned earlier, this algorithm uses posterior probability to classify instances. All we need to do to contruct the classifier is to pass our train data (minus the default values) and our corresponding train labels:
+
+```{r}
+classifier <- naiveBayes(credit_train[-17], credit_train_labels)
+classifier
+```
+
+The output of our classifier shows some important details about our model. It provides the a-priori (already known) values of our train labels and follows with the conditional probabilites of each feature. The numbers represent that percentage of that value occurring for each class label in the train data.
+
+To make a prediction, we will pass our classifier and the test data set (again minus the default value).
+
+```{r}
+class_test_pred <- predict(classifier, credit_test)
+```
+
+### Evaluating Model Performance
+
+Our predictions object contains a vector of values with factor levels of yes/no. We can compare these predictions to the 
+
+```{r}
+CrossTable(class_test_pred, credit_test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
+```
+
+The predicted class values against the actuals provide an easy to interpret table, but it is also possible to examine the probability measures that the model used to make a classification. This can be useful when comparing different models because, although two models may predict the same correct number of labels as another, the predicted probability shows how confident overall a model is with its decision:
+
+```{r}
+credit_test_prob <- predict(classifier, credit_test, type = "raw")
+head(credit_test_prob)
+```
+
+This command provides us with a two dimensional list with probability estiamtes between "yes" and "no". These figures will fall between 0 and 1. We can create a data frame using these values and round the numbers off to make them more easily readable.
+
+```{r}
+credit_results <- data.frame(actual_type = credit_test_labels,
+                          predict_type = class_test_pred,
+                          prob_no = round(credit_test_prob[ , 1], 5),
+                          prob_yes = round(credit_test_prob[ , 2], 5))
+head(credit_results)
+```
+
+The output shows how confident our first model was in classifying a case as "yes" or "no". Based on our first confusion matrix, we know that our model mis-classified 24 cases. We can take advantage of our results data frame to see what the probability measures were for those cases:
+
+```{r}
+subset(credit_results, actual_type != predict_type)
+```
+
+Most of the probability estimates for these cases are relatively close, but we can see that for cases 55, 58, and 82 that the model was over 90% confident in its assignment, but predicted incorrectly. 
+
+Finally, the caret package provides a more robust confusion matrix than that we built using gmodels. 
+
+```{r}
+confusionMatrix(credit_results$predict_type, credit_results$actual_type, positive = "yes")
+```
+
+There is wealth of detail here that can help us better understand our model. We can see a simple confusion matrix as well as our accuracy rate. Additionally, there are a few other useful metrics to use for evaluation purposes going forward.
+
+The Kappa value tells us how well this model performed in its observed accuracy (what it correctly predicted) versus what it was expected to predict (values that any random classifier would be expected to achieve). This is very helpful at comparing multiple models and will be used heavily in the next section.
+
+Additionally, sensitivity (true positive rate) and specificity (true negative rate) are other useful metrics to evaluate and compare different models.
+
+### Improving Model Performance
+
+#### Laplace Estimators
+
+For an initial improvement, we can apply a Laplacian estimator to account for rarely occurring values. In some cases there may be a value that occurs in only one sample, and nowhere else in any cases. Although this value does not occur often, its presence means that it could have some impact on the outcome of the default feature and needs to be included. Laplacian estimators assign a default value to these infrequently occurring terms, so as to increase their impact on the model. 
+
+We can easily apply this by passing an additional parameter to our Naive Bayes model. Let's begin with a value of two and increase to four as well and compare those results using the caret package:
+
+```{r}
+# 8
+laplace_8 <- naiveBayes(credit_train[-17], credit_train_labels, laplace = 8)
+laplace_8_pred <- predict(laplace_8, credit_test)
+confusionMatrix(laplace_8_pred, credit_test_labels, positive = "yes")
+
+# 12
+laplace_12 <- naiveBayes(credit_train[-17], credit_train_labels, laplace = 12)
+laplace_12_pred <- predict(laplace_12, credit_test)
+confusionMatrix(laplace_12_pred, credit_test_labels, positive = "yes")
+```
+
+Our predicted accuracy improved slightly with each of the two laplace models; however, our kappa statistic got much worse. This is likely due to overfitting that train data by having a laplace value that is somewhat irresponsibly high.
+
+#### Cross Validation
+
+We have been using the caret package for evaluating model performance; however, the package also includes support for built-in model performance tuning on a variety of different model types. 
+
+To see if we can yet improve upon our model we will refine the strategy we use for subsetting the data. Previously we merely created separate partitions based on percentages. Although this sounds effective in practive, it can lead to a few different problems.
+
+First, although we did check the distribution of the class labels, there is no guarantee that the class labels will as be evenly distributed in unknown data. Secondly, we built and improved models against train data, and then evaluated performance against the test data. Ideally we would have a third set (validation) which we would use to iterate and improve models before turning them loose on test data.
+
+The K-fold cross-validation strategy involves doing just that and iterating over a validation set before applying a model to the test data. Additionally, multiple (K) subsets are randomly generated to prevent overfitting. This approach averages overall prediction error to provide a more accurate estimate of model performance.
+
+We will allow our models to iterate over our train split for all three stages of the process: train, validate, and test. Then to truly test predictions, we will use our test data set, which none of the models have yet seen.
+
+There's a number of parameters we need to setup for our model. First we need to create a control object that instructs the caret function the resampling method to use, and in this case how many folds. We will use ten as that is the industry standard.
+
+Also, we will specify a grid of tuning parameters. fL is a placeholder value for a Laplace estimator, useKernel, and adjust we will leave with the default values. We will try a few combinations of fL to see if there is any difference.
+
+Once ready, we'll create a model using our train data sample and labels. We will inform the train() function that we are creating a Naive Bayes (nb) model, and specify our control and grid parameters:
+
+```{r}
+ctrl <- trainControl(method = "cv", number = 10)
+grid <- expand.grid(.fL = 1, .usekernel = FALSE, .adjust = 1)
+set.seed(123)
+model = train(credit_train[-17], credit_train_labels, method = 'nb',trControl = ctrl, tuneGrid = grid)
+```
+
+To make a prediction we will pass our model to the predict() function along with the test data and create a confusion matrix to examine the results
+
+```{r}
+p <- predict(model, credit_test)
+confusionMatrix(p, credit_test_labels, positive = "yes")
+```
+
+Overall this performs exactly the same as our very first model. Although we did not see any significant performance enhancements, this results should make us feel better about the consistent results we are seeing. 
+
+Although we were unable to improve our accuracy and kappa statistic, our results are quite encouraging. A kappa of around 0.40-0.50 indicates above average performance and we can be reasonably assured that our model would likely translate well to unseen data.
+
+## kNN
+
+### Train Model
+
+For the kNN models we will be exploring, we will have to reload the original data set and perform some cursory data cleaning and manipulating. kNN models are based on distance calculations, and thus every feature must be numeric or integer type.
+
+```{r}
+credit <- read.csv("credit.csv")
+str(credit)
+```
+
+kNN models are highly susceptible to large ranges in values for variables. We can see the range of the existing numeric variables:
+
+```{r}
+summary(credit[sapply(credit, is.numeric)]) 
+```
+
+From the output above, we can see the summary statistics for our numeric variables. Some of the variables appear acceptable in that they have close min and max values. However, for months loan duration, amount, and age the values range pretty wide and need to be brought closer together before performing any analysis.
+
+To bring these values closer together we can apply a method of normalization known as min-max normalization that follows the format of: (x-min(x))/(max(x)-min(x)). To implement this, we will create a custom function:
+
+```{r}
+normalize <- function(x){
+  return((x - min(x)) / (max(x) - min(x)))
+}
+
+credit["months_loan_duration"] <- lapply(credit["months_loan_duration"], normalize)
+credit["amount"] <- lapply(credit["amount"], normalize)
+credit["age"] <- lapply(credit["age"], normalize)
+
+summary(credit[sapply(credit, is.numeric)])
+```
+
+Now we can see that our three problematic numeric variables have a much closer distribution.
+
+Since we read the data in by leaving stringsAsFactors to the default of TRUE, we can see that we have mostly factor variables in our data set.
+
+As a kNN assessment works only with numeric values we will have to convert these factor variables to a useful data type that the kNN model will be able to understand. To remedy this, we can easily cast these factors as numeric values using native R functions since each factor level is represented as an integer: 1, 2, 3, 4, etc.:
+
+```{r}
+summary(credit[sapply(credit, is.factor)])
+credit$checking_balance <- as.numeric(credit$checking_balance)
+credit$credit_history <- as.numeric(credit$credit_history)
+credit$purpose <- as.numeric(credit$purpose)
+credit$savings_balance <- as.numeric(credit$savings_balance)
+credit$employment_duration <- as.numeric(credit$employment_duration)
+credit$other_credit <- as.numeric(credit$other_credit)
+credit$housing <- as.numeric(credit$housing)
+credit$job <- as.numeric(credit$job)
+credit$phone <- as.numeric(credit$phone)
+str(credit)
+```
+
+There is one problem with this approach which could impact the efficacy of our classifier. Converting factor variables directly to numeric features implies that the difference in levels between the factors is consistent across all levels. That is to say, the increase in impact of moving from level one of a factor to level two is the same as the jump from level two to level three, and so on.
+
+Looking at the job feature, the difference between management and skilled (2 and 4 factor levels in our data set) when translated to a numeric value may not mean that a skilled job is double the value of a management job. This difference may be negligible for ordinal (ordered) factors, but for nominal factors (such as job), we will simply have to concede this as a potential bias in our data when assessing the model's performance.
+
+Now that our features are scaled, normalized, and properly coded, we will create test and train data sets for classification. We will reserve 10% of the data for testing and allow the other 90% to be used in training the model. Since the credit data is not randomly ordered, we need to ensure our train and test sets are randomized to avoid overfitting when training:
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample,]
+credit_test <- credit[-train_sample,]
+```
+
+Here we set a seed value to ensure our results are repeatable and created a list of 900 random values to use to grab data from the credit set for training. We then grab the values not found in our random list to assign the test data set all the rows left from the credit set that were not used for the train set.
+
+Lastly, let's verify that the proportion of our class feature is consistent in both the train and test sets:
+
+```{r}
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+The proportions and distributions are relatively even and acceptable. Now we simply need to assign the default class feature to train and test lists and drop it from the data sets as we cannot have a factor variable in our classifier:
+
+```{r}
+credit_train_labels <- credit_train[,"default"]
+credit_test_labels <- credit_test[,"default"]
+credit_train <- credit_train[-17]
+credit_test <- credit_test[-17]
+```
+
+This ensures that our class labels are kept consistent with the train and test data set rows before dropping the feature.
+
+To train our model we will use the knn() function available in the class R package. We will pass our train data to the knn() function as well as the test data and train labels. The function will then assign a value for default (yes, no).
+
+The final parameter to pass to the knn() function is the number of neighbors to assess when the function builds the model. The general rule of thumb in selecting the number of neighbors is to use the square root of the number of samples in the train data. In our case this means the square root of 900, which conveniently enough is exactly 30:
+
+
+```{r}
+credit_test_pred <- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 30)
+```
+
+### Evaluating Model Performance
+
+Now that we have our kNN classifier model, we can assess performance by creating a cross tabulation to compare predicted to actual results:
+
+```{r}
+CrossTable(x = credit_test_labels, y = credit_test_pred, prop.chisq = FALSE)
+confusionMatrix(credit_test_labels, credit_test_pred, positive = "yes")
+```
+
+We will create both a basic confusion matrix using the gmodels package's CrossTable() function and the ConfusionMatrix() function from the caret R package.
+
+Our classifier performed quite well, with an overall accuracy rate of 74%. Only one negative default case was missclassified; however, the model seems to have stuggled with true positives. The model only correctly classified 8/33 cases of true positive default values. 
+
+Our kappa is acceptable but a little on the low side. 
+
+### Improving Model Performance
+
+As an initial improvement step, we can adjust the number of neighbors to consider as part of the classification algorithm by changing the k value supplied to the knn() function:
+
+```{r}
+# different k values
+credit_test_pred <- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 50)
+CrossTable(x = credit_test_labels, y = credit_test_pred, prop.chisq = FALSE)
+confusionMatrix(credit_test_labels, credit_test_pred, positive = "yes")
+
+credit_test_pred <- knn(train = credit_train, test = credit_test, cl = credit_train_labels, k = 20)
+CrossTable(x = credit_test_labels, y = credit_test_pred, prop.chisq = FALSE)
+confusionMatrix(credit_test_labels, credit_test_pred, positive = "yes")
+```
+
+A higher k value improved predictive accuracy incrementally, but noticably lowered our kappa statistic. A lower k value did not improve performance. The slight increase in raw accuracy, but lower kappa value suggests that by increasing the number of neighbors, we overfit the data slightly.
+
+Once again we can use the caret package to refine our resampling and holdout strategy to better improve our results.
+
+First we need to reload the data to start with a fresh set, as the caret package will perform some data cleaning operations for us:
+
+```{r}
+# read data back in as caret will perform some normalization itself
+credit <- read.csv("credit.csv")
+
+# convert factors to numeric
+credit$checking_balance <- as.numeric(credit$checking_balance)
+credit$credit_history <- as.numeric(credit$credit_history)
+credit$purpose <- as.numeric(credit$purpose)
+credit$savings_balance <- as.numeric(credit$savings_balance)
+credit$employment_duration <- as.numeric(credit$employment_duration)
+credit$other_credit <- as.numeric(credit$other_credit)
+credit$housing <- as.numeric(credit$housing)
+credit$job <- as.numeric(credit$job)
+credit$phone <- as.numeric(credit$phone)
+
+# create train and test data sets using random sample
+set.seed(123)
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample,]
+credit_test <- credit[-train_sample,]
+
+# create train and test class objects
+credit_train_labels <- credit_train[,"default"]
+credit_test_labels <- credit_test[,"default"]
+```
+
+Next, we can use the train() function to build a new classifier and measure its performance. The train() function will run a number of models with different k values to test. The function will then select the optimal value based on our specified performance metric, kappa. We can also tell the model to center and scale the data so that we do not have to manual adjust for high variance numeric features.
+
+Also, we will use a standard 10-fold cross-validation for resampling, using the train data to build the model, and the test data to make predictions:
+
+```{r}
+set.seed(400)
+ctrl <- trainControl(method = "cv", number = 10)
+knnFit <- train(default ~ ., data = credit_train, method = "knn", metric = "Kappa", trControl = ctrl, preProcess = c("center", "scale"))
+
+knnFit
+
+p <- predict(knnFit, credit_test[-17])
+CrossTable(x = credit_test_labels, y = p, prop.chisq = FALSE)
+confusionMatrix(credit_test_labels, p, positive = "yes")
+```
+
+Our predictive accuracy decreased slightly; however, our kappa value improved. This means that this latest model is doing a better job of fitting unseen data. 
+
+The output of the knnFit object itself shows us the different models that wer built along with their k values with accuracy and kappa values for each and a statement that declares the parameters for the optimal model.
+
+This technique produced the highest kappa statistic and had a similar level of accuracy. Of all combinations attempted, this provided the optimal model for a kNN classifier on the credit data.
+
+## Conclusion
+
+Overall we created a number of different Naive Bayes and kNN classifier models for attempting to predict credit defaults based on several different input variables such as income, housing, and outstanding loans. Looking at both predictive accuracy and other metrics (particularly kappa statistic), even the poorest Naive Bayes model outperformed all of the kNN models significantly.
+
+In general, Naive Bayes models make probabilistic estiamtions to determine class values whereas kNN uses distance between neighbors and optimizes locally. Naive Bayes models will generalize better with little to no performance tuning. kNN models cannot determine the importance of a feature relative to others. That is to say an outlier (infrequently occurring feature) will not receive any more or less weight than one that occurrs frequently.
+
+The optimal type of machine learning model vaires highly by task, but looking at the German credit data set, Naive Bayes classifier should in general perform much better than kNN classifiers. Higher kappa values suggest better translation to new or unseen data. Even raw accuracy was slightly better in our assessments. 
+
+[R Source](final-1.R)

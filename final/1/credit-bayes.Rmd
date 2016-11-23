@@ -11,11 +11,13 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 ## Introduction
 
-The goal of this assessment is to apply a Naive Bayes classifier to a set of financial data from Germany in order to determine the likelihood that an individual will default on a loan.
+The goal of this assessment is to compare two different machine learning classification models and their performance against the same data set. The two methods being examined are both well suited for classification tasks, but take much different approaches to classifying examples.
 
 Naive Bayes classifiers are simple but powerful models for assigning class labels to instances represented as a vector of feature values. Naive Bayes are known as such, as they are based on Bayesian probability and also assume that the value of a feature is indepdendent of the value of any other feature within the vector. Although Bayesion probability is often used, Naive Bayes classifiers can also apply non-Bayesian probability measures such as maximum-likelihood.
 
 The implementation we will use can found in e1071 R package uses posterior probability. In short, posterior probability is the conditional probability of a value based on the study of previous examples and given another event with the same conditions occurred previously.
+
+
 
 ## Data Collection and Preparation
 

@@ -28,7 +28,7 @@ normalize <- function(x){
 credit["months_loan_duration"] <- lapply(credit["months_loan_duration"], normalize)
 credit["amount"] <- lapply(credit["amount"], normalize)
 credit["age"] <- lapply(credit["age"], normalize)
-
+str(credit)
 
 # convert factors to numeric
 summary(credit[sapply(credit, is.factor)])
@@ -79,5 +79,8 @@ confusionMatrix(credit_test_pred, credit_test_labels, positive = "yes")
 ##################################################
 # caret
 set.seed(400)
-ctrl <- trainControl(method = "cv", folds = 10)
+ctrl <- trainControl(method = "cv", number = 10)
 knnFit <- train(default ~ ., data = credit, method = "knn", metric = "Kappa", trControl = ctrl, preProcess = c("center", "scale"))
+
+p <- predict(knnFit, credit_test)
+confusionMatrix(p, credit_test_labels, positive = "yes")
