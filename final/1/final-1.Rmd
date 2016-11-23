@@ -212,6 +212,24 @@ credit <- read.csv("credit.csv")
 str(credit)
 ```
 
+Before building a model, let's examine a few of the numeric features to see if any pattern emerges:
+
+```{r}
+scatterplot(credit$amount ~ credit$months_loan_duration | credit$default) # defaults appear randomly scattered along both amount and months of the loan
+scatterplot(credit$amount ~ credit$age | credit$default) # also random scatter
+```
+
+There appears to be random scatter for the relationships between these features. No obvious pattern emerges, although the plot illustrating loan amounts over the terms of loans is a somewhat positive linear correlation.
+
+It may also be useful to see how loan amounts change over the length of loan terms. A loan with a high balance and short term may indicate instances where a loan is more likely to default:
+
+```{r}
+# how do loan amounts change over the length of the loan
+boxplot(amount ~ months_loan_duration, data = credit, main="Credit Data", xlab = "months_loan_duration", ylab = "amount")
+```
+
+There are a few noticably high lean amounts with a short duration. These may be significant. 
+
 kNN models are highly susceptible to large ranges in values for variables. We can see the range of the existing numeric variables:
 
 ```{r}

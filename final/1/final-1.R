@@ -68,6 +68,12 @@ confusionMatrix(p, credit_test_labels, positive = "yes")
 credit <- read.csv("credit.csv")
 str(credit)
 
+scatterplot(credit$amount ~ credit$months_loan_duration | credit$default) # defaults appear randomly scattered along both amount and months of the loan
+scatterplot(credit$amount ~ credit$age | credit$default) # also random scatter
+
+# how do loan amounts change over the length of the loan
+boxplot(amount ~ months_loan_duration, data = credit, main="Credit Data", xlab = "months_loan_duration", ylab = "amount")
+
 # check for distribution of numeric variables
 summary(credit[sapply(credit, is.numeric)]) # months_loan_duration, amount, age
 
