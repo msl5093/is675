@@ -1,8 +1,9 @@
+##################################################
+# libraries
+##################################################
 library(neuralnet)
 library(e1071)
-library(class)
 library(gmodels)
-library(car)
 library(caret)
 
 url = "http://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
@@ -10,7 +11,7 @@ iris <- read.table(url, sep = ",", header = FALSE)
 str(iris)
 
 set.seed(123)
-train_sample <- sample(150, 112)
+train_sample <- sample(150, 105)
 train <- iris[train_sample,]
 test <- iris[-train_sample,]
 
@@ -20,7 +21,9 @@ prop.table(table(test$V5))
 train_labels <- train[,"V5"]
 test_labels <- test[,"V5"]
 
-## NB
+##################################################
+# Naive Bayes
+##################################################
 classifier <- naiveBayes(train[-5], train_labels)
 classifier
 
@@ -28,7 +31,6 @@ test.pred <- predict(classifier, test)
 
 CrossTable(test.pred, test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
 confusionMatrix(test.pred, test_labels)
-
 
 ctrl <- trainControl(method = "cv", number = 10)
 grid <- expand.grid(.fL = 1, .usekernel = FALSE, .adjust = 1)
@@ -72,5 +74,5 @@ plot(iris.Ann, rep = "best")
 iris.prediction <- compute(iris.Ann, test[1:4])
 iris.prediction$net.result
 
+
 CrossTable(result, test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
-confusionMatrix(results, test_labels)
