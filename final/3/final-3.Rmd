@@ -1,0 +1,130 @@
+---
+title: 'Final - #1'
+author: "Mike Lehman"
+date: "November 23, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+## Introduction
+
+The goal of this assessment is to compare two different machine learning regression models and their overall performance at predicting continuous outcome variables. The two methods being examined are both useful techniques for predicting numeric variables; but with some subtle differences that may impact their overall performance.
+
+Decision trees are a family of highly extensible machine learning models which can be used for both multivariate classification analyses as well as for the prediction of continuous, numeric outcome variables. Regression trees are a subset of decision trees that can make numeric predictions by averaging the values of features when performing splits. In typical classification trees, those decision tree models split based on the distribution of categorical data. Despite the name, regression trees do not apply linear regression methods, but instead use the average feature values as mentioned for feature splitting.
+
+Another common method for numeric prediction are linear regression models. Linear regression models seek to model the relationship between a dependent variable and one or more indpendent predictor variables. In the application of a linear model, the relationship between the predictor features and the outcome feature are assumed to be linear in nature. For every level increase of a predictor feature we should see some increase or decrease in the outcome feature. Linear regression models can be expressed as points across a two-dimensional space, with the distribution of such features indicating the relativel linearity of the features.
+
+```{r include=FALSE}
+library(psych)
+library(rpart)
+library(rpart.plot)
+```
+
+## Prostate Cancer Data
+
+The data that will be used for this assessment come from a 1989 study that examined the correlation between the level of prostate specific antigen (PSA) and other clinical measures. There are a total of 97 samples which will be used to predict both the LPSA and the log cancer volume (lcavol). We will being by reading the data from the prostate.csv file into an R data frame:
+
+```{r}
+prostate <- read.csv("prostate.csv")
+str(prostate)
+```
+
+The output shows us that we have a total of six features across the 97 samples. Since we will be attempting to predict both lpsa and lcavol, let's explore some of the correlation measures between all of the features to see what relationships there are between them:
+
+```{r}
+summary(prostate$lpsa)
+hist(prostate$lpsa)
+```
+
+These two outputs show the distribution of our first feature, lpsa. We can see from both the summary statistics and the histogram that lpsa is very evenly distributed. It is good to know, as the distribution of a feature can impract prediction models.
+
+We will do the same for lcavol:
+
+```{r}
+summary(prostate$lcavol)
+hist(prostate$lcavol)
+```
+
+Again we see similar even distribution.
+
+We can make use of the R package psych in order to construct a scatterplot matrix that can show us the correlation measures across all features in the data set. This can be useful to highlight any strong correlation relationships up front, and point out any other distinctions across the features:
+
+```{r}
+pairs.panels(prostate[c("lcavol", "age", "lbph", "lcp", "gleason", "lpsa")])
+```
+
+Above the diagonal of histograms, we can see the respective correlation measures between the features (row x column). Similarly, below the diagonal are scatterplots for those same relationships. In each of the scatterplots there are correlation ellipses which show correlation of the variables based on the size of the oval around the center dot which contains the mean value for the feature. The more this oval is stretched, the stronger the correlation.
+
+Lcavol lcp seem to have a strong correlation as well as lcavol and lpsa, the two features for which we are attempting to predict:
+
+```{r}
+cor(prostate[c("lpsa", "lcavol")])
+```
+
+Correlation values fall between 0 and 1. Since we have a high value of 0.73, we know ahead of time that both of our target features are highly correlated.
+
+Before beginning our analysis, we will have to split our data set into train and test subsets so that the train set may be used for modeling, while the test set may be used for prediction. We will randomize the data and do so along a 70/30 split since we have such a small data set to being with.
+
+Since all of our data is numeric, we do not have to worry about data cleaning or normalization for continuous prediction:
+
+```{r}
+set.seed(123)
+train_sample <- sample(97, 68)
+train <- prostate[train_sample, ]
+test  <- prostate[-train_sample, ]
+```
+
+## Regression Trees
+
+We will begin our analysis by building a regression tree model to predict the lpsa feature as a function of all the other input features. We can utilize the rpart R package, which allows for the modeling of regression trees.
+
+To being, we will pass our target feature (lpsa) and all other features into the rpart() function. The shorthand notation of '.' may be used to inform the function that we intend to include all other features as predictors. Finally we will specify our train data set as the data set with which to build the model:
+
+```{r}
+model.lpsa.tree <- rpart(lpsa ~ ., data = train)
+model.lpsa.tree
+```
+
+The output shows use how the model split at each feature with the feature listed as well as its value relative to the feature (>, <, <=, etc.) and how many features fell into that range. Interestingly we can see that the first feature split occurred a lcavol, our second target feature for which we will be predicting later. This means that lcavol is the single most important predictor of lpsa. 
+
+We can plot the tree using the separate rpart.plot package to visually exmaine the feature splits:
+
+```{r}
+rpart.plot(model.lpsa.tree, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+```
+
+In the resulting plot we can see how each feature was split (lcavol < 1.524 vs. >= 1.524) at each node.
+
+Fallen leaves forces all leaf nodes to be aligned at the bottom and type and extra provide additional details. For example we now have a total count of samples in each leaf node instead of just the percentage.
+
+Now we can evaluate this model's performance by making a prediction for lpsa.
+
+```{r}
+model.prediction <- predict(model.lpsa.tree, test)
+```
+
+To assess the quality of our model's predictions, we can compare the summary statistics of our test data's target feature and the predicted values:
+
+```{r}
+summary(model.prediction)
+summary(test$lpsa)
+```
+
+Based on these outputs, we see that the model is not correctly indentifying the extremes, but does come close to matching the first quartile and median values.
+
+To summarize the quality of the model we can look at the results of the correlation of the predicted versus actual values:
+
+```{r}
+cor(model.prediction, test$lpsa)
+```
+
+```{r}
+MAE <- function(actual, predicted) {
+  mean(abs(actual - predicted))  
+}
+
+MAE(test$lpsa, model.prediction)
+```

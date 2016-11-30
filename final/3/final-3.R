@@ -5,50 +5,85 @@ library(psych)
 library(rpart)
 library(rpart.plot)
 
-##################################################
-# Linear Regression
-##################################################
 prostate <- read.csv("prostate.csv")
 str(prostate)
 
-set.seed(123)
-train_sample <- sample(97, 83)
-train <- prostate[train_sample, ]
-test  <- prostate[-train_sample, ]
-
-## lpsa
-# exploratory analysis for lpsa
+# exploratory analysis
 summary(prostate$lpsa)
 hist(prostate$lpsa)
+
+summary(prostate$lcavol)
+hist(prostate$lcavol)
+
 pairs.panels(prostate[c("lcavol", "age", "lbph", "lcp", "gleason", "lpsa")])
 
 # correlation between lpsa and lcavol
 cor(prostate[c("lpsa", "lcavol")])
 
-# basic linear model
-model.lpsa_lm <- lm(lpsa ~ ., data = train)
-model.lpsa_lm
-summary(model.lpsa_lm)
-
-
-## lcavol
-model.lcavol_lm <- lm(lcavol ~ ., data = train)
-model.lcavol_lm
-summary(model.lcavol_lm)
-
-cor(prostate[c("lcavol", "lcp")])
+set.seed(123)
+train_sample <- sample(97, 68)
+train <- prostate[train_sample, ]
+test  <- prostate[-train_sample, ]
 
 ##################################################
 # Regression Trees
 ##################################################
-
 ## lpsa
-model.lpsa_tree <- rpart(lpsa ~ ., data = train, method = "anova")
-model.lpsa_tree
-rpart.plot(model.lpsa_tree, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+model.lpsa.tree <- rpart(lpsa ~ ., data = train)
+model.lpsa.tree
+rpart.plot(model.lpsa.tree, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+
+model.prediction <- predict(model.lpsa.tree, test)
+summary(model.prediction)
+summary(test$lpsa)
+
+cor(model.prediction, test$lpsa)
+
+MAE <- function(actual, predicted) {
+  mean(abs(actual - predicted))  
+}
+
+MAE(test$lpsa, model.prediction)
 
 
 ## lcavol
-model.lcavol_tree <- rpart(lcavol ~ ., data = train, method = "anova")
-model.lcavol_tree
-rpart.plot(model.lcavol_tree, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+model.lcavol.tree <- rpart(lcavol ~ ., data = train, method = "anova")
+model.lcavol.tree
+rpart.plot(model.lcavol.tree, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+
+model.prediction <- predict(model.lcavol.tree, newdata = test)
+cor(model.prediction, test$lcavol)
+
+
+##################################################
+# Linear Regression
+##################################################
+## lpsa
+# basic linear model
+model.lpsa.lm <- lm(lpsa ~ ., data = train)
+model.lpsa.lm
+summary(model.lpsa.lm)
+
+model.prediction <- predict(model.lpsa.lm, test)
+cor(model.prediction, test$lpsa)
+
+residual.train <- train$lpsa - predict(model.lpsa.lm, data = train)
+residual.test <- test$lpsa - model.prediction
+
+sqrt(mean(residual.train^2))
+sqrt(mean(residual.test^2))
+
+
+## lcavol
+model.lcavol.lm <- lm(lcavol ~ ., data = train)
+model.lcavol.lm
+summary(model.lcavol.lm)
+
+model.prediction <- predict(model.lcavol.lm, test)
+cor(model.prediction, test$lcavol)
+
+residual.train <- train$lcavol - predict(model.lcavol.lm, data = train)
+residual.test <- test$lcavol - model.prediction
+
+sqrt(mean(residual.train^2))
+sqrt(mean(residual.test^2))

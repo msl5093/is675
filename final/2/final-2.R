@@ -75,4 +75,5 @@ iris.prediction <- compute(iris.Ann, test[1:4])
 iris.prediction$net.result
 
 
+
 CrossTable(result, test_labels, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
