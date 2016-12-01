@@ -4,6 +4,7 @@
 library(psych)
 library(rpart)
 library(rpart.plot)
+library(RWeka)
 
 prostate <- read.csv("prostate.csv")
 str(prostate)
@@ -45,15 +46,39 @@ MAE <- function(actual, predicted) {
 
 MAE(test$lpsa, model.prediction)
 
+###
+m.m5p <- M5P(lpsa ~ ., data = train)
+summary(m.m5p)
+
+p.m5p <- predict(m.m5p, test)
+summary(p.m5p)
+
+cor(p.m5p, test$lpsa)
+MAE(test$lpsa, p.m5p)
+
 
 ## lcavol
 model.lcavol.tree <- rpart(lcavol ~ ., data = train, method = "anova")
 model.lcavol.tree
 rpart.plot(model.lcavol.tree, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
 
-model.prediction <- predict(model.lcavol.tree, newdata = test)
+model.prediction <- predict(model.lcavol.tree, test)
+summary(model.prediction)
+summary(test$lcavol)
+
 cor(model.prediction, test$lcavol)
 
+MAE(test$lcavol, model.prediction)
+
+###
+m.m5p <- M5P(lcavol ~ ., data = train)
+summary(m.m5p)
+
+p.m5p <- predict(m.m5p, test)
+summary(p.m5p)
+
+cor(p.m5p, test$lcavol)
+MAE(test$lcavol, p.m5p)
 
 ##################################################
 # Linear Regression
@@ -66,12 +91,7 @@ summary(model.lpsa.lm)
 
 model.prediction <- predict(model.lpsa.lm, test)
 cor(model.prediction, test$lpsa)
-
-residual.train <- train$lpsa - predict(model.lpsa.lm, data = train)
-residual.test <- test$lpsa - model.prediction
-
-sqrt(mean(residual.train^2))
-sqrt(mean(residual.test^2))
+MAE(test$lpsa, model.prediction)
 
 
 ## lcavol
@@ -81,9 +101,4 @@ summary(model.lcavol.lm)
 
 model.prediction <- predict(model.lcavol.lm, test)
 cor(model.prediction, test$lcavol)
-
-residual.train <- train$lcavol - predict(model.lcavol.lm, data = train)
-residual.test <- test$lcavol - model.prediction
-
-sqrt(mean(residual.train^2))
-sqrt(mean(residual.test^2))
+MAE(test$lcavol, model.prediction)
