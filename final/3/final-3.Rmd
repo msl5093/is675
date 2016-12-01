@@ -248,3 +248,5 @@ Predicting lcavol using our linear model, it appears that we have done a much be
 In this assessment we have attempted to predict both lpsa and lcavol as functions of all other features in our prostate cancer data set. As we have seen with regression and model trees and basic linear models, although there is a high degree of correlation - predicted the actual values of each of these features is somewhat difficult.
 
 It may be possible that the data set is too small at only 97 samples, or that the features simply do not have an underlying linearity. A logistic regression model or neural network may have more success as both of those methods can better model and capture non-linear relationships.
+
+[R Source](final-3.R)

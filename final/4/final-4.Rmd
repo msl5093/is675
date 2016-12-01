@@ -1,0 +1,94 @@
+---
+title: "Final-4"
+author: "Mike Lehman"
+date: "December 1, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+## Introduction
+
+The goal of this assessment is to apply an unsupervised machine learning technique to a given data set to extract new, previously unknown insights from the data. The technique that we will use is a particular approach to clustering. Clustering is simply a way of dividing data into groups of similar items without having been instructed as to what the groups should look like prior to grouping.
+
+Clustering works by plotting all data points into a two-dimensional feature space, then assigning random fixed positions and drawing boundaries which attempt to group all data points in homogenous groups.
+
+There are many different implementations of clustering, the one we will examine is the k-means algorithm. The k-means algorithm uses simple ideas that are easy to understand, but is lacking in sophistication and is driven by a process of random selection that often may require several iterations to extract any meaningful information. The algorithm uses Euclidean distance to determine the spatial distance between two data points to determine which items should be considered homogenous and cluster boundaries drawn.
+
+The algorithm assigns each example to one of k clusters, with k representing a user defined value. The process begins by randomly assigning center points (centroids) during an initial assignment phase, then enters an update phase which involves shifting the cluster centers to a new location in efforts to create more locally homogenous clusters.
+
+## Protein Data Set
+
+The data we will be examining for this assessment come from a breakdown of Eurpopean nations' protein consumption. The data includes a list of 25 different European nations and their respective protein consumption by food group. Each of the good groups has the respective nation's protein consumption in overall percentage. Meaning a value of 10.0 means that 10 percent of that nation's protein consumption comes from that food group.
+
+```{r include=FALSE}
+library(fpc)
+```
+
+We will begin by reading the data into R. Since we know that one of our features is a list of country names, we will apply stringsAsFactos = FALSE so that the country names read in as character strings instead of factor levels:
+
+```{r}
+protein <- read.csv("protein.csv", stringsAsFactors = FALSE)
+str(protein)
+```
+
+From the output we see that we have a charcter vector for our country labels with all other features being numeric. These refer to the precentage consumption for each food group. Since we are creating distance based clusters using the K-means approach, we will need to scale these features as large value ranges have a significant impact on distance calculations.
+
+First we will create a data frame with only the numeric features:
+
+```{r}
+pro.sources <- protein[2:10]
+summary(pro.sources)
+```
+
+We can see that there are some noticably large value ranges. We can apply the scale function to the entire data frame and store the results in a new data frame to keep our original data intact. R's native scale feature will apply a z-score standardization (how many standard deviations if the value from the mean) to numeric data. 
+
+```{r}
+pro.sources_z <- as.data.frame(lapply(pro.sources, scale))
+summary(pro.sources_z)
+```
+
+From the output we can see that our numeric values are now much closer in range. Now that we have a data frame with standardized numeric features, we can apply K-means clustering to assess relationships amongst the data.
+
+## K-means Clustering
+
+We will make use of the kmeans() function which accepts a data frame of numeric features as well as an additional parameter, the number (k) of clusters centers to consider.
+
+The decision of k values or clusters to consider is arbitrary to a degree. It is often defined based on the domain of the subject matter and multiple values are often tested to achieve the best results. For our assessment we will being with four, considering that the various food groups can be grouped together based on their type: meat, dairy, produce, and other.
+
+Since a great deal of randomization is involved in clustering, we will set a seed value so our results are repeatable.
+
+```{r}
+set.seed(123)
+protein.clusters <- kmeans(pro.sources_z, 4)
+protein.clusters
+```
+
+The output of our cluster model shows the frequency of each food source within each cluster. Since the data was scaled, these values refer to how many standard deviations above (positive) or below (negative) the mean. A higher positive value means that that food groups appears frequently within that cluster. 
+
+For example, cluster #1 seems to have many occurrences of Milk and Fish proteins 
+
+Our cluster model has two objects which can be referenced with $ notation to provide more insight into its performance.
+
+```{r}
+protein.clusters$size
+protein.clusters$centers
+```
+
+Size tells us the size of each cluster, meaning how many features appear within that cluster. The cluster centers provide the coordinates of the centroids for each feature.
+
+We can associate cluster assignments back to our original data set as so:
+
+```{r}
+protein$cluster <- protein.clusters$cluster
+```
+
+Since clustering creates new information, a simple way to assess performance of a clustering model is to relate it back to the original information.
+
+```{r}
+protein[, c("cluster","Country")]
+```
+
+From this output we can see cluster assignments by country. 
