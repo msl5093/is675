@@ -1,3 +1,8 @@
+##################################################
+# libraries
+##################################################
+library(car)
+library(caret)
 library(neuralnet)
 
 ##################################################
@@ -6,24 +11,27 @@ library(neuralnet)
 cars <- read.csv("ToyotaCorolla.csv")
 str(cars)
 
+scatterplot(Price ~ Age, data = cars, xlab="Age", ylab="Price", main="Price Scatterplot", labels=row.names(cars))
+scatterplot(Price ~ KM, data = cars, xlab="KM", ylab="Price", main="Price Scatterplot", labels=row.names(cars))
+
 set.seed(123)
 train_sample <- sample(1436, 1292)
 train <- cars[train_sample, ]
 test  <- cars[-train_sample, ]
 
-# basic linear model
-model.cars <- lm(Price ~ ., data = train)
-model.cars
+# linear model using caret
+ctrl <- trainControl(method = "cv", number = 10)
+model.cars <- train(Price ~., data = train, method = "lm", trControl = ctrl)
 summary(model.cars)
 
 model.prediction <- predict(model.cars, test)
 cor(model.prediction, test$Price)
 
-residual.train <- train$Price - predict(model.cars, data = train)
-residual.test <- test$Price - model.prediction
+MAE <- function(actual, predicted) {
+  mean(abs(actual - predicted))  
+}
 
-sqrt(mean(residual.train^2))
-sqrt(mean(residual.test^2))
+MAE(test$Price, model.prediction)
 
 ##################################################
 # Artificial Neural Network
@@ -54,24 +62,4 @@ cars.ann.results <- compute(cars.ann, test.norm[2:10])
 cars.ann.prediction <- cars.ann.results$net.result
 cor(cars.ann.prediction, test.norm$Price)
 
-
-# 5 hidden nodes
-set.seed(12345)
-cars.ann.hidden5 <- neuralnet(formula = Price ~ Age + KM + FuelType + HP + MetColor + Automatic + CC + Doors + Weight, 
-                      data = train.norm, hidden = 5)
-
-plot(cars.ann.hidden5, rep="best")
-
-cars.ann.hidden5.results <- compute(cars.ann.hidden5, test.norm[2:10])
-cars.ann.hidden5.prediction <- cars.ann.hidden5.results$net.result
-cor(cars.ann.hidden5.prediction, test.norm$Price)
-
-
-# caret
-grid <- expand.grid(.decay = c(0.5, 0.1), .size = c(2, 4, 6))
-ctrl <- trainControl(method = "cv", number = 10)
-  
-cars.model.nnet <- train(Price ~ ., data = train.norm, method = "nnet", tuneGrid = grid, tuneControl = ctrl)
-
-cars.model.nnet.prediction <- predict(cars.model.nnet, test.norm)
-cor(cars.model.nnet.prediction, test.norm$Price)
+MAE(test.norm$Price, cars.ann.prediction)
