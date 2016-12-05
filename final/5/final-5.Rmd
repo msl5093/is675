@@ -1,0 +1,178 @@
+---
+title: "Final-5"
+author: "Mike Lehman"
+date: "December 5, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+## Introduction
+
+The goal of this assessment is to apply association rule learning to a set of data to discover patterns in the relationships of data points. Association rules identify patterns found in relationships among items found in sets, known as itemsets. Itemsets are simply sets of items that occur together. In summation, association rule learning is an unsupervised machine learning process that attempts to find patterns in the relationships among groups of items that occur together in a given data set.
+
+```{r include=FALSE}
+library(arules)
+library(RWeka)
+```
+
+## Mushroom Data Set
+
+The original data set for our assessment can be found at the UCI machine learning data repository: [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Mushroom). At this location you will find the original raw data at the link titled: "Data Folder".
+
+Inside the web directory, the file: agaricus-lepiota.data contains a comma-separated file with single characters that represent the data we will use for our assessment. For example, the first few characters in the first line of agaricus-lepiota.data are as follows: "p","x","s". In our data set, these same values are as follows: "poisonous","convex","smooth".
+
+The entire list of attribute value pairs can be found in detail in the file: agaricus-lepiota.names in the same directory.
+
+We will being the assessment by creating a set of assication rules without the type (edible/poisonous) factor. After that we will create a basic rule learner classifier for reference in order to compare our association rules to those discovered by the rule learner.
+
+Finally, we will create a second association rule set that includes the type factor for comparison to the first association rule set as well as the reference rule learner.
+
+## Association Rules - No Type Variable
+
+To begin our assessment we will read the mushroom data set into an R data frame:
+
+```{r}
+mushrooms <- read.csv("mushrooms.csv", stringsAsFactors = TRUE)
+str(mushrooms)
+mushrooms$veil_type <- NULL
+```
+
+The resulting output of the data set shows that the veil-type feature is simply the same value for every observation. Because of this we have set that feature to null so as not to influence any of our models.
+
+Association rule learners require input data to be in transactional format. What we have in our mushrooms data frame resembles a table in a relational database with column names/headers and observations as rows. What we need is an object that contains merely the observations of feature values in one sample without any headers for each row. Fortunately we can build create such an object by casting the data frame as transactional data.
+
+Recall that our mushrooms data frame contains the type variable. We will need to omit this feature for the first set of association rules:
+
+```{r}
+# omit type variable
+mushrooms.data <- as(mushrooms[-1], "transactions")
+mushrooms.data
+```
+
+Our mushrooms.data object contains each observation as a transaction so the number of transactions corresponds to the observations in the original data frame. We see that we have 116 items because each possible factor level of a feature is reprented as an occurence of that feature. Where we had 22 variables before (excluding type for now), we now have 116 possible items in a transaction.
+
+To create our assocition rules, we will use the apriori() function and pass a few additional parameters. We will specify minimum support and confidence levels as well as minimum amount of items per each rule. The support level of an itemset refers to how frequently it appears in the data. That is, support(x) = count(x) / N where N is the number of transactions in the data.
+
+Confidence indicates the number of times the if/then statement underlying the rule was found to be true. The minlen parameter value of two will instruct our rule learner to limit its search to rules where there are at least two items per rule.
+
+We are passing these parmeters to the limit the scope of the rules returned. Without them the learner may generate a massive ruleset that contains a large number of negligible rules that provide no real insight:
+
+```{r}
+mushroom.rules <- apriori(mushrooms.data, parameter = list(support = 0.1, confidence = 0.75, minlen = 2))
+mushroom.rules
+summary(mushroom.rules)
+```
+
+Our first association rule learner found 821,010 rules. The summary data show us the amount of rules by legnth as well as summary statistics for rule lengths and summary statistics for quality measures such as support, confidence, and lift.
+
+Let's inspect the first 25 rules in the set to see if any pattern emerges:
+
+```{r}
+inspect(mushroom.rules[1:25])
+```
+
+Some of these rules may be useful, but feature a low overall lift measure. In association rule learning, lift refers to the measure of performance that a learned rule has at predicting outcomes against a random subset of the model. Basically, how much better would a rule perform at predicting outcomes if it is applied to only a subset of the data. Higher lift means better performance.
+
+To examine the top 20 rules by lift, we can perform the following:
+
+```{r}
+inspect(sort(mushroom.rules, by = "lift")[1:20])
+```
+
+Looking at the left-hand side (the "if" in the "if/then" statement of the rule) of the rules, the odor feature appears quite often. The values "foul" or "none" appear in each of the top 20 rules by lift. We can create a subset of these rules to dive deeper:
+
+```{r}
+mushroom.odor.foul <- subset(mushroom.rules, lhs %in% "odor=foul")
+inspect(sort(mushroom.odor.foul, by = "lift")[1:25])
+
+mushroom.odor.none <- subset(mushroom.rules, lhs %in% "odor=none")
+inspect(sort(mushroom.odor.none, by = "lift")[1:25])
+```
+
+An odor of foul seems to lead to a ring-type of large. Similarly, an odor of none seems to often imply a stalk-root of equal. In general odor appears to have a very large impact on rules in this data set.
+
+Our first association rule learner did not include the type feature. Now that we have an idea that odor is important in mushroom rules, let's return to the type feature to see how an association rule learner will handle the type feature.
+
+## One Rule Learner
+
+Before creating our second association rule learner, we will create a basic rule learning model that uses the One Rule algorithm for classification. This differs from association learners in that association learners are unsupervised machine learning methods, and are not concerned with predicting class labels but rather are concerned with finding association rules with high scoring metrics as previously defined.
+
+One Rule learners seek to find what is the single most important feature when predicting a class outcome and is similar conceptually to a decision tree that considers only one feature to split.
+
+For reference, we will create a One Rule learner to see what the most important feature is in determining the type of mushroom, edible or poisonous. 
+
+```{r}
+mushroom_1R <- OneR(type ~ ., data = mushrooms)
+mushroom_1R
+summary(mushroom_1R)
+```
+
+We will ignore the summary output for now, but return to it later as needed. For now, the output of our One Rule learner show us what is the most important feature when determining mushrooms potency. Not surprisingly, odor appears to be the single most important feature.
+
+## Association Rules - with type variable
+
+Now that we have our two previous models in place, let's create an association rule learner that contains the type attribute and see what it learns about the type attribute. 
+
+The primary difference between our previous association learner and the one we are going to build now, is that we will inform the apriori() function that we are only interested in rules where the type feature occurs in the right-hand side of the rule. The right-hand side of a rule is simply the "then" of the "if/then" logical statement that makes up the rule. For example, "if odor = foul / then type = poisonous"
+
+We will also create a new transaction object that includes the type variable this time:
+
+```{r}
+mushrooms.data.type <- as(mushrooms, "transactions")
+
+mushroom.rules_2 <- apriori(mushrooms.data.type, parameter = list(support = 0.1, confidence = 0.75, minlen = 2), appearance = list(rhs=c("type=edible", "type=poisonous")))
+mushroom.rules_2
+summary(mushroom.rules_2)
+```
+
+Including the type variable, the model has seemed to learn over 120,000 more rules than without the type variable. 
+
+In order to see which rules feature the two different type values in the right-hand side of the rule, we can create two subsets of rules:
+
+```{r}
+mushroom.type.edible <- subset(mushroom.rules_2, rhs %in% "type=edible")
+inspect(sort(mushroom.type.edible, by = "lift")[1:25])
+
+mushroom.type.poisonous <- subset(mushroom.rules_2, rhs %in% "type=poisonous")
+inspect(sort(mushroom.type.poisonous, by = "lift")[1:25])
+```
+
+We can see from the rule subsets as sorted by lift that odor feature somewhat prominently in the left-hand side of each rule. We see it feature more often in the edible subset than poisonous. We can drill down one more level by subsetting each subset further to see how odor impacts the type.
+
+```{r}
+mushroom.type.edible.odor <- subset(mushroom.type.edible, lhs %in% "odor=none")
+inspect(sort(mushroom.type.edible.odor, by = "lift")[1:25])
+
+mushroom.type.poisonous.odor <- subset(mushroom.type.poisonous, lhs %in% "odor=foul")
+inspect(sort(mushroom.type.poisonous.odor, by = "lift")[1:25])
+```
+
+It looks like a foul odor implying a type of poisonous has a very high lift. Indicating that a foul odor often leads to a poisonous mushroom. However, it looks like an odor of none is not as strongly correlated to a type of edible. The support and lift metrics are not quite as high. 
+
+Recall that our first association rule learner also found that an odor of foul seemed to imply a ring-type of large. It may be the case that this is another feature and value that correspond to a type of poisonous. Let's create a final subset to see if that is the case and if so, what are the metric for such rules:
+
+```{r}
+mushrooms.ringtype.large <- subset(mushroom.type.poisonous, lhs %in% "ring_type=large")
+inspect(sort(mushrooms.ringtype.large, by = "lift")[1:25])
+```
+
+Similar to an odor of foul, large ring-types appear to strongly imply a poisonous mushroom. Our association rule learners have found a feature that may not have as strong an impact as odor on mushroom type, but has a considerable impact all its own. In this sense we have been able to expand our understanding beyond our One Rule classifier.
+
+## Conclusion
+
+Going back to our One Rule classifier, we can see the different class outcomes for varying values of odor:
+
+```{r}
+mushroom_1R
+```
+
+It appears that more often than not, odors usually imply poisonous. Only almond, anise, and none imply that a mushroom is edible. Because any value for odor more often than not implies poisionous, it makes sense that our final association rule learner found that odor of none does not as strongly imply a type of edible as an odor of anything else may imply poisonous.
+
+Using association rule learners, we were able to extract valuable insights from the mushrooms data set that may not have otherwise been known. We were even able to find a new association that a One Rule classifier, by nature, would not have reported. 
+
+This assessment has shown that an unsupervised machine learning method (association rule learning) can be used in tandem with a supervised method (One Rule learning) to discover new insights regarding a data set that may not have been previously possible.
+
+[R Source](final-4.R)

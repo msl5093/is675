@@ -26,7 +26,16 @@ protein$cluster <- protein.clusters$cluster
 
 protein[, c("cluster","Country")]
 
+protein[which(protein$cluster == 4), c("cluster","Country")]
+
+str(protein)
+
 aggregate(data = protein, RedMeat ~ cluster, mean)
 aggregate(data = protein, Milk ~ cluster, mean)
+aggregate(data = protein, Eggs ~ cluster, mean)
+
+aggregate(data = protein, Nuts ~ cluster, mean)
+aggregate(data = protein, Fish ~ cluster, mean)
+aggregate(data = protein, Starch ~ cluster, mean)
 
 plotcluster(protein[2:10], protein$cluster)

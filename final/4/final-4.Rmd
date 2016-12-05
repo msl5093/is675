@@ -91,4 +91,52 @@ Since clustering creates new information, a simple way to assess performance of 
 protein[, c("cluster","Country")]
 ```
 
-From this output we can see cluster assignments by country. 
+From this output we can see cluster assignments by country. Previously we saw that cluster 4 had the greatest size, and the output here confirms the same as cluster 4 occurs most frequently. Since this is our largest cluster, it may be helpful to examine some of the characteristics of that cluster.
+
+```{r}
+protein[which(protein$cluster == 4), c("cluster","Country")]
+```
+
+The countries associated with cluster 4 appear to be widely geographically disbursed, meaning that rules learned about cluster 4 may be broadly applicable to the protein consumption of all of Europe.
+
+Let's return to our data set to examine the different food groups:
+
+```{r}
+str(protein)
+```
+
+We can run aggregate statistics around each of the food groups by cluster and see what the resulting values tell us about each cluster. For example, we can find the mean percentage of protein consumption for some of the features:
+
+```{r}
+aggregate(data = protein, RedMeat ~ cluster, mean)
+aggregate(data = protein, Milk ~ cluster, mean)
+aggregate(data = protein, Eggs ~ cluster, mean)
+```
+
+This first set of aggregate numbers shows us the average percentage of protein consumption by cluster for those foods which we associate with an omnivorous diet. We can also use the same techniques to see numbers for those foods typically associated with vegetarian or non-meat eating diets:
+
+```{r}
+aggregate(data = protein, Nuts ~ cluster, mean)
+aggregate(data = protein, Fish ~ cluster, mean)
+aggregate(data = protein, Starch ~ cluster, mean)
+```
+
+It appears that cluster 4 gets more of its protein from read meat and milk whereas clusters 2 and 3 get a noticably higher amount of protein from fish and nuts than cluster 4.
+
+Lastly, it is often useful to plot out the clusters across a two-dimensional feature space to see how cluster assignments are disbursed. Such a plot can illustrate tightly compact groups or those where cluster assignments have significant outliers:
+
+```{r}
+plotcluster(protein[2:10], protein$cluster)
+```
+
+Clusters 1, 3, and 4 seems to have tightly compact groups, whereas cluster 2 is merely two disparate data points that are somewhat close together but appear to be significantly apart. Recall from earlier that cluster 2 was our smallest so this makes sense.
+
+What this plot also tells us is that the clusters and their respective countries have a tight grouping and not much overalp. Meaning that those countries which belong to cluster 1 have a high degree of homogeneity between each other as far as protein consumption. The same can be said of clusters 3 and 4. Overall protein consumption appears to be highly correlated with a country, meaning that protein consumption can vary greatly depending on which country is observed.
+
+## Conclusion
+
+Using k-means clustering we were able to examine Eurpopean protein consumption to learn some basic rules about the sources of dietary protein for different countries. We learned that there appears to be a high degree of homogeneity within each cluster of countries with very little overlap. This insight would not have been possible by using just the raw data, or at least would have required significant manual searching and sorting.
+
+By applying some basic machine learning concepts we were able to observe previously unknown trends in the data though basic clustering analysis.
+
+[R Source](final-4.R)
