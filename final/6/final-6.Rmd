@@ -1,52 +1,86 @@
-##################################################
-# libraries
-##################################################
+---
+title: "Final-6"
+author: "Mike Lehman"
+date: "December 6, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r include=FALSE}
 library(psych)
 library(caret)
 library(rpart)
+```
 
-##################################################
-# Linear Regression
-##################################################
+## Introduction
+
+## Cars Data
+
+```{r}
 cars <- read.csv("ToyotaCorolla.csv")
 str(cars)
+```
 
+```{r}
 # linear correlations
 pairs.panels(cars[c("Price", "Age", "KM", "Doors", "HP")])
+```
 
+## Linear Regression
+
+```{r}
 set.seed(123)
 train_sample <- sample(1436, 1292)
 train <- cars[train_sample, ]
 test  <- cars[-train_sample, ]
+```
 
+```{r}
 ctrl <- trainControl(method = "cv", number = 10)
 model.cars <- train(Price ~., data = train, method = "lm", trControl = ctrl)
 summary(model.cars)
+```
 
+```{r}
 model.prediction <- predict(model.cars, test)
 cor(model.prediction, test$Price)
+```
 
+```{r}
 MAE <- function(actual, predicted) {
   mean(abs(actual - predicted))  
 }
 
 MAE(test$Price, model.prediction)
+```
 
-##################################################
-# Regression Tree
-##################################################
+## Regression Trees
+
+```{r}
 model.tree.cars <- train(Price ~., data = train, method = "rpart", trControl = ctrl)
 model.tree.cars
+```
 
+```{r}
 p.rpart <- predict(model.tree.cars, test)
 cor(p.rpart, test$Price)
 MAE(p.rpart, test$Price)
+```
 
+```{r}
 # complexity parameter
 grid <- expand.grid(.cp=seq(0.005, 0.05, 0.025)) 
 model.tree.cars <- train(Price ~., data = train, method = "rpart", trControl = ctrl, tuneGrid = grid)
 model.tree.cars
+```
 
+```{r}
 p.rpart <- predict(model.tree.cars, test)
 cor(p.rpart, test$Price)
 MAE(p.rpart, test$Price)
+```
+
+## Conclusion
