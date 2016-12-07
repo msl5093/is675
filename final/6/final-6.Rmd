@@ -17,35 +17,83 @@ library(rpart)
 
 ## Introduction
 
+The goal of this assessment is to predict the price of used automobiles based on a variety of input data predictors. The vehicle data we will be using comes from European automobile sales. The features in the data set include: the price of the vehcile in Euros, the age of the vehicle in months, the accumulated kilometers on the odometer, and the vehicle weight, horsepower, and other aesthetic characteristics such as color. 
+
+In order to complete our task of predicting the vehicle price, we will need to first assess the different machine learning models we have at our disposal. Because the majority of the features are numeric, and the feature we are predicitng is numeric and continuous, we can refine and shorten our list of options.
+
+For this assessment we will apply both a standard linear regression model, and a regression tree to compare and contrast for performance metrics. Before going any further, we will load the data set into R and perform some exploratory analysis to see if our model choices are wise or if we should reassess our options.
+
 ## Cars Data
+
+We will begin by loading the used car data into R and examining the features.
 
 ```{r}
 cars <- read.csv("ToyotaCorolla.csv")
 str(cars)
 ```
 
+All but the fuel type feature import as integer data types. Before going any further, there are a few issues that need to be addressed. The MetColor and Automatic features appear to be coded as categorical variables. For MetColor, a value of 1 is equal to yes, with 0 being no. The Automatic feature is the same. 
+
+We can recode these variables as factors before going any further:
+
 ```{r}
-# linear correlations
+cars$MetColor <- factor(cars$MetColor, levels = c(0,1), labels = c("no", "yes"))
+cars$Automatic <- factor(cars$Automatic, levels = c(0,1), labels = c("no", "yes"))
+str(cars)
+```
+
+Out of our 10 features, three are now factors. Since we are dealing with used vehicle data, and our goal is to predict price, it makes sense to examine some the correlations between the inuitively obvious features. Used vehicle price would logically be highly dependent on age and odometer (KM) reading. It stands to reason that the number of doors and the horsepower would have some correlation to price as well.
+
+We can plot these relationships visually using the psych library to generate a scatterplot matrix:
+
+```{r}
 pairs.panels(cars[c("Price", "Age", "KM", "Doors", "HP")])
 ```
 
+There seems to be a strong negative linear correlations between price as it relates to age and kilometers as seen in the plots in the first column, rows two and three. As age and km increase, price goes down.
+
+Sinc there are some strong linear correlations between a number of the predictor features as they relate to our target feature, we can move forward with fitting a linear regression model with some degree of confidence that it will be successful.
+
 ## Linear Regression
+
+Before building our model we will subset our data by creating randomized train and test sets using a traditional 80/20 split for train and test:
 
 ```{r}
 set.seed(123)
-train_sample <- sample(1436, 1292)
+train_sample <- sample(1436, 1148)
 train <- cars[train_sample, ]
 test  <- cars[-train_sample, ]
 ```
 
+Lastly, before fitting our linear regression model, we will make use of the caret library to set a control object with additional parameters for resampling. For our assessment we will use a standard 10-fold cross-validation so that our model will fit on the training data and iterate over validation subsets before we make any predictions on the test data.
+
 ```{r}
 ctrl <- trainControl(method = "cv", number = 10)
+```
+
+Now that we have our data sets and control parameters, we can fit our linear model. For our model, we will pass all the features as predictors for the target feature, price:
+
+```{r}
 model.cars <- train(Price ~., data = train, method = "lm", trControl = ctrl)
 summary(model.cars)
 ```
 
+The summary output of our model provides great details about how our model performed when predicting the price values for the train data set. Residuals are the differences between the predicted and actual values, are lower value is best, and will be relative to the range of the target feature. The summary statistics for residuals indicate that at most our model under-predicted price by 9138 and over-predicted by 6430, but on average was only over by 6.8.
+
+As expected, we see a very "high" negative p value for age and km, indicating a strong negative correlation. 
+
+Our multiple r-squared and adjusted r-squared values show that our model performed quite well. R-squared refers to the variation explained by the model over the total variation in predicted versus actual values. R-squared values fall between 0% and 100% with a higher value indicating a better fit. The adjusted R-squared is an R-squared value that has been adjusted for the number of predictors in the model and is in general a more accurate reflection of goodness of fit.
+
+Our model explained a great deal of the variation and is therefore a strong candidate for predictive accuracy.
+
+Let's run a prediction of our model against the test data:
+
 ```{r}
 model.prediction <- predict(model.cars, test)
+```
+
+
+```{r}
 cor(model.prediction, test$Price)
 ```
 
