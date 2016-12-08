@@ -4,7 +4,7 @@
 library(psych)
 library(caret)
 library(rpart)
-library(rpart.plot)
+library(randomForest)
 
 ##################################################
 # Linear Regression
@@ -41,7 +41,7 @@ MAE <- function(actual, predicted) {
 MAE(test$Price, model.prediction)
 
 ##################################################
-# Regression Tree
+# Regression Trees
 ##################################################
 model.tree.cars <- train(Price ~., data = train, method = "rpart", trControl = ctrl)
 model.tree.cars
@@ -52,9 +52,16 @@ MAE(p.rpart, test$Price)
 
 # complexity parameter
 grid <- expand.grid(.cp=seq(0.005, 0.05, 0.025)) 
-model.tree.cars <- train(Price ~., data = train, method = "rpart", trControl = ctrl, tuneGrid = grid)
+model.tree.cars <- train(Price ~., data = train, method = "rpart", metric = "Rsquared", trControl = ctrl, tuneGrid = grid)
 model.tree.cars
 
 p.rpart <- predict(model.tree.cars, test)
 cor(p.rpart, test$Price)
 MAE(p.rpart, test$Price)
+
+# random forest
+rf <- randomForest(Price ~ ., data = train, ntree = 20)
+rf.p <- predict(rf, test)
+
+cor(rf.p, test$Price)
+MAE(rf.p, test$Price)

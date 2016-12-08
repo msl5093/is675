@@ -194,12 +194,12 @@ mushrooms.data</code></pre>
 ## Absolute minimum support count: 812 
 ## 
 ## set item appearances ...[0 item(s)] done [0.00s].
-## set transactions ...[116 item(s), 8124 transaction(s)] done [0.02s].
+## set transactions ...[116 item(s), 8124 transaction(s)] done [0.01s].
 ## sorting and recoding items ... [53 item(s)] done [0.00s].
 ## creating transaction tree ... done [0.00s].
-## checking subsets of size 1 2 3 4 5 6 7 8 9 10 done [1.03s].
-## writing ... [821010 rule(s)] done [0.17s].
-## creating S4 object  ... done [0.58s].</code></pre>
+## checking subsets of size 1 2 3 4 5 6 7 8 9 10 done [1.11s].
+## writing ... [821010 rule(s)] done [0.18s].
+## creating S4 object  ... done [0.63s].</code></pre>
 <pre class="r"><code>mushroom.rules</code></pre>
 <pre><code>## set of 821010 rules</code></pre>
 <pre class="r"><code>summary(mushroom.rules)</code></pre>
@@ -611,12 +611,12 @@ mushroom.rules_2 &lt;- apriori(mushrooms.data.type, parameter = list(support = 0
 ## Absolute minimum support count: 812 
 ## 
 ## set item appearances ...[2 item(s)] done [0.00s].
-## set transactions ...[118 item(s), 8124 transaction(s)] done [0.00s].
+## set transactions ...[118 item(s), 8124 transaction(s)] done [0.01s].
 ## sorting and recoding items ... [55 item(s)] done [0.00s].
-## creating transaction tree ... done [0.01s].
-## checking subsets of size 1 2 3 4 5 6 7 8 9 10 done [1.90s].
-## writing ... [944298 rule(s)] done [0.21s].
-## creating S4 object  ... done [0.40s].</code></pre>
+## creating transaction tree ... done [0.00s].
+## checking subsets of size 1 2 3 4 5 6 7 8 9 10 done [1.98s].
+## writing ... [944298 rule(s)] done [0.22s].
+## creating S4 object  ... done [0.43s].</code></pre>
 <pre class="r"><code>mushroom.rules_2</code></pre>
 <pre><code>## set of 944298 rules</code></pre>
 <pre class="r"><code>summary(mushroom.rules_2)</code></pre>
@@ -965,7 +965,7 @@ inspect(sort(mushrooms.ringtype.large, by = &quot;lift&quot;)[1:25])</code></pre
 <p>It appears that more often than not, odors usually imply poisonous. Only almond, anise, and none imply that a mushroom is edible. Because any value for odor more often than not implies poisionous, it makes sense that our final association rule learner found that odor of none does not as strongly imply a type of edible as an odor of anything else may imply poisonous.</p>
 <p>Using association rule learners, we were able to extract valuable insights from the mushrooms data set that may not have otherwise been known. We were even able to find a new association that a One Rule classifier, by nature, would not have reported.</p>
 <p>This assessment has shown that an unsupervised machine learning method (association rule learning) can be used in tandem with a supervised method (One Rule learning) to discover new insights regarding a data set that may not have been previously possible.</p>
-<p><a href="final-4.R">R Source</a></p>
+<p><a href="final-5.R">R Source</a></p>
 </div>
 
 

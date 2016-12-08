@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 library(psych)
 library(caret)
 library(rpart)
+library(randomForest)
 ```
 
 ## Introduction
@@ -78,7 +79,7 @@ model.cars <- train(Price ~., data = train, method = "lm", trControl = ctrl)
 summary(model.cars)
 ```
 
-The summary output of our model provides great details about how our model performed when predicting the price values for the train data set. Residuals are the differences between the predicted and actual values, are lower value is best, and will be relative to the range of the target feature. The summary statistics for residuals indicate that at most our model under-predicted price by 9138 and over-predicted by 6430, but on average was only over by 6.8.
+The summary output of our model provides great details about how our model performed when predicting the price values for the train data set. Residuals are the differences between the predicted and actual values, are lower value is best, and will be relative to the range of the target feature. 
 
 As expected, we see a very "high" negative p value for age and km, indicating a strong negative correlation. 
 
@@ -92,10 +93,17 @@ Let's run a prediction of our model against the test data:
 model.prediction <- predict(model.cars, test)
 ```
 
+The predict function will apply our model to the test data and attempt to predict the price feature based on what it has learned from the train data. To asess our model's accuracy, we can pass the model's predicted values to R's native cor() function as well as the actual test data prices to find the degree of correlation:
 
 ```{r}
 cor(model.prediction, test$Price)
 ```
+
+Correlation between predicted and actual values fill fall between 0 and 1, with a higher value indicating better fit. This values essentially is how close the predicted values are to the actual values.
+
+Our correlation metric of 0.94 indicates very good performance. To further assess accuracy, we can calculate the Mean Absolute Error for our model's predictions. MAE is exactly as the name implies, the average difference of actual versus predicted values. A low MAE indicates better performance. 
+
+To calculate MAE, we will create a custom functions that accepts two vectors, then pass our predicted and actual values into the function:
 
 ```{r}
 MAE <- function(actual, predicted) {
@@ -105,25 +113,49 @@ MAE <- function(actual, predicted) {
 MAE(test$Price, model.prediction)
 ```
 
+Our MAE score of 895.4666 indicates that, on average the model is only about that many units off from predicting the actual price. Given that Price values range from 4350-32500 this is quite an acceptable average error.
+
+Since our model has performed quite well with 10-fold cross-validation for selective sampling, we can be reasonably assured that this model would perform well with additional unseen data, and that the features (at least most of them) have a linear strong correlation with price. 
+
 ## Regression Trees
+
+To continue our exploration of the cars data set, we will also build a regression tree model to see if we can exceed, or at least match, or standard linear regression model. 
+
+Decision trees are a family of highly extensible machine learning models which can be used for both multivariate classification analyses as well as for the prediction of continuous, numeric outcome variables. Regression trees are a subset of decision trees that can make numeric predictions by averaging the values of features when performing splits. In typical classification trees, those decision tree models split based on the distribution of categorical data. Despite the name, regression trees do not apply linear regression methods, but instead use the average feature values as mentioned for feature splitting.
+
+Since we have already preprocessed and subset our data, we can begin with the model building phase. For our regression tree model we will again use the caret package and specify that "rpart" for the method. Rpart is a library for building regression trees. We can also reuse our control object to use 10-fold cross-validation for sampling:
 
 ```{r}
 model.tree.cars <- train(Price ~., data = train, method = "rpart", trControl = ctrl)
 model.tree.cars
 ```
 
+The results of outputting our model show that the caret package fit three different models and choose the best model based on root mean squared error (RMSE), but it also shows us the compexity parameter and r-squared values for each model.
+
+The r-squared value is not as good as even our linear model's adjusted r-squared, but let's run a prediction and see how the model performs:
+
 ```{r}
 p.rpart <- predict(model.tree.cars, test)
 cor(p.rpart, test$Price)
 MAE(p.rpart, test$Price)
 ```
+
+Both the correlation and MAE values are worse than our linear model. We can tune the regression tree model further to see if we can improve performance.
+
+First, we will create a tuning grid with different values for complexity parameter. The complexity parameter is used to control the size of the decision tree and to select the optimal tree size. If the cost of adding another variable to the decision tree from the current node is above the value of cp, then tree building does not continue. We'll provide a list of three somewhat random values to allow for different model to be iterated.
+
+We'll also specify that r-squared should be used to select the optimal model using the metric parameter:
 
 ```{r}
 # complexity parameter
 grid <- expand.grid(.cp=seq(0.005, 0.05, 0.025)) 
-model.tree.cars <- train(Price ~., data = train, method = "rpart", trControl = ctrl, tuneGrid = grid)
+model.tree.cars <- train(Price ~., data = train, method = "rpart", metric = "Rsquared", trControl = ctrl, tuneGrid = grid)
 model.tree.cars
 ```
+
+Based on the output, a complexity parameter of 0.005 was chosen for the final model.
+
+We can see from the r-squared and RMSE values that our model improved a bit, but still fell short of our linear model against the train data. Let's run a prediction against the test data to get final numbers:
 
 ```{r}
 p.rpart <- predict(model.tree.cars, test)
@@ -131,4 +163,30 @@ cor(p.rpart, test$Price)
 MAE(p.rpart, test$Price)
 ```
 
+Our correlation value came quite close to matching our basic linear model, but the MAE was noticably higher, by about 400 units. 
+
+For a final pass at matching our linear model, we will fit a Random Forest model. 
+
+Random forests are an ensemble learning technique for decision tree models that combine bootstrap aggregating with random feature selection. Random forest implementations build a number of decision trees through random feature selection, then take a vote that is the mode of the predicted classes for classification tasks. Random forests can also be used in regression analysis where the mean prediction is used.
+
+```{r}
+rf <- randomForest(Price ~ ., data = train, ntree = 20)
+rf.p <- predict(rf, test)
+
+cor(rf.p, test$Price)
+MAE(rf.p, test$Price)
+```
+
+Without any additional performance tuning or parameterization, a Random Forest Model with a total of 20 trees built, exceeded our linear model and our regression trees.
+
+In general, Random forest models can better capture non-linear relationships. Referring back to the summary of our linear model, several of the predictor features did not have significant p values. This means that those features did not have a linear relationship to the target feature, price. Our Random Forest model, because it generates a number of trees and applies random feature selection, was likely able to capture some of those non-linearities, particularly our factor variables.
+
 ## Conclusion
+
+Using both linear regression models and regression trees, we were able to predict used vehicle sale price at a fairly accurate level. Further testing on unseen data would need to be performed with each type of model to rule out overfitting, bias, and variance.
+
+Even though our Random Forest Model produced the best results, it is important to note that RF model are quite computationally expensive. If we were facing a much larger data set, like those in the real-world, we would probably start to see performance hits in terms of how fast and efficient an RF model would be in predicting prices.
+
+Despite the fact that our linear model slightly under-performed against the RF, linear models in general are much faster and more computationally efficient to build. Therefore, a linear regression model would probably be the best possible solution for this problem, given the strong linear relationships between several input features and the price of a used vehicle.
+
+[R Source](final-6.R)

@@ -175,4 +175,4 @@ Using association rule learners, we were able to extract valuable insights from 
 
 This assessment has shown that an unsupervised machine learning method (association rule learning) can be used in tandem with a supervised method (One Rule learning) to discover new insights regarding a data set that may not have been previously possible.
 
-[R Source](final-4.R)
+[R Source](final-5.R)
