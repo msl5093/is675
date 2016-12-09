@@ -1,0 +1,257 @@
+---
+title: "Final-7"
+author: "Mike Lehman"
+date: "December 9, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to explore Congressional roll call data from the sessions of the 113th House and Senate. First we will explore the data using an unsupervised machine learning technique known as clustering to find any patterns in the data. After that, we will apply a supervised machine learning technique, in this case a Naive Bayes classifier, to see if we can predict a representative or senators political party based on their voting data.
+
+Clustering is simply a way of dividing data into groups of similar items without having been instructed as to what the groups should look like prior to grouping. Clustering works by plotting all data points into a two-dimensional feature space, then assigning random fixed positions and drawing boundaries which attempt to group all data points in homogenous groups. 
+
+There are many different implementations of clustering, the one we will examine is the k-means algorithm. The k-means algorithm uses simple ideas that are easy to understand, but is lacking in sophistication and is driven by a process of random selection that often may require several iterations to extract any meaningful information. The algorithm uses Euclidean distance to determine the spatial distance between two data points to determine which items should be considered homogenous and cluster boundaries drawn.
+
+The algorithm assigns each example to one of k clusters, with k representing a user defined value. The process begins by randomly assigning center points (centroids) during an initial assignment phase, then enters an update phase which involves shifting the cluster centers to a new location in efforts to create more locally homogenous clusters.
+
+Naive Bayes classifiers are simple but powerful models for assigning class labels to instances represented as a vector of feature values. Naive Bayes are known as such, as they are based on Bayesian probability and also assume that the value of a feature is indepdendent of the value of any other feature within the vector. Although Bayesion probability is often used, Naive Bayes classifiers can also apply non-Bayesian probability measures such as maximum-likelihood.
+
+The implementation we will use can found in e1071 R package uses posterior probability. In short, posterior probability is the conditional probability of a value based on the study of previous examples and given another event with the same conditions occurred previously.
+
+```{r include=FALSE}
+library(e1071)
+library(gmodels)
+library(caret)
+library(pscl)
+library(fpc)
+```
+
+## Data Collection
+
+The Congressional roll call data contain the party affiliations and states from which the representatives and senators hail. The data also contain Congressional district codes, a numeric code for each political party and a state. Finally, there are also numeric codes for each vote cast for both house and senate samples.
+
+The numeric code values for votes can be broken down as follows: 0 = not a member, 1 = Yea, 6 = Nay, 7 = present, and 9 = Not Voting.
+
+There are other possible number codes, but as we will see, those do not occur in our data sets, so those can be safely ignored for our purposes.
+
+To gather the house and senator roll call data, we will use the pscl R package, which was built specifically for using data in this particular format. We can use the pscl package's readKH() function to get the data from the remote source via FTP:
+
+```{r}
+h113 <- readKH("ftp://k7moa.com/dtaord/hou113kh.ord")
+s113 <- readKH("ftp://k7moa.com/dtaord/sen113kh.ord")
+str(h113)
+str(s113)
+```
+
+From the output of each set, we can see that only values for vote count types of 0, 1, 6, 7, 9 are found. The data for each set get loaded into R as a proprietary rollcall object from the pscl package. To perform any analysis we will have to extract what we need. Notice that the rollcall objects have a legis.data object that is a data frame. This contains the state and party information we need. 
+
+Additionally, the rollcall objects each contain a list (two-dimensional table) called votes. These contain the voting data. We will extract each of these into a separate data frame and combine the two data frames using cbind():
+
+```{r}
+legis.house_df <- h113$legis.data
+votes.house_df <- as.data.frame(h113$votes)
+h113_df <- cbind(legis.house_df, votes.house_df)
+str(h113_df)
+```
+
+Notice that we now have an R data frame that contains the state information, party information, and corresponding vote codes for each sample.
+
+We can repeat the same process for the senate data.
+
+```{r}
+legis.senate_df <- s113$legis.data
+votes.senate_df <- as.data.frame(s113$votes)
+s113_df <- cbind(legis.senate_df, votes.senate_df)
+str(s113_df)
+```
+
+Now that we have our data loaded into a useful format, we can being analysis.
+
+## K-means
+### House Data
+
+We will start our clustering analysis with the house roll call data. Since K-Means clustering utilizes distance as part its process of creating clusters and assignments, we need to deal with the factor variables in our data set. Based on the earlier output, we know that there are only two factor vectors in the data, state and party. 
+
+We can temporarily remove these values and reassing the results to a new data frame and build our clustering model using the new data frame. The clustering results will be assigned back to the original data frame later:
+
+```{r}
+h113_df.noFactors <- h113_df[-1]
+h113_df.noFactors <- h113_df.noFactors[-4]
+str(h113_df.noFactors)
+```
+
+Now that we have removed our factor vectors, we will have to scale our remaining numeric features as some of them have large ranges in values. This can be easily achieved by taking advantage of R's native scale() function which performs a basic z-score normalization, reassigning values based on their standard-deviation from the mean:
+
+```{r}
+h113_df.noFactors <- as.data.frame(lapply(h113_df.noFactors, scale))
+str(h113_df.noFactors)
+```
+
+Now that our numeric features are scaled, we can create our clustering model. The number of cluster centers to consider is somewhat arbitrarily determined. Since we know there are five possible values for vote, we'll create five cluster centers:
+
+```{r}
+house.clusters <- kmeans(h113_df.noFactors, 5)
+house.clusters$size
+```
+
+Our cluster sizes appear to vary quite a bit. This is not necessarily cause for alarm, as it may simply point out unique patterns in the data. Cluster two appears to feature very few members (5). Similarly, cluster three has only 17.
+
+To further examine our house cluster, we will add cluster assignments back to the original house data frame:
+
+```{r}
+h113_df$cluster <- house.clusters$cluster
+h113_df[, c("state", "party", "cluster")]
+```
+
+Here we've printed a list that shows each representative, their respective state, party, and to which cluster they belong. Looking at the outpout, one can visually see patterns emerging. You can see that the party and state columns are often the same across rows, and the clusters tend to be the same as well. For example, several representatives from California are Democrats, with many (but not all) falling into cluster 1.
+
+For the most part, Republican party members tend to fall into clusters 4 or 5, with Democrats falling into 1. This makes some sense as those are our largest clusters. The combined totals of clusters 4 and 5 would outnumber the first cluster in a similar ratio to the actual percentages of part representation in Congress for the 113th session. 
+
+We can visualize this breakdown using a simple table:
+
+```{r}
+table(h113_df$party, h113_df$cluster)
+```
+
+The same table can also be drawn to break down states by cluster:
+
+```{r}
+table(h113_df$state, h113_df$cluster)
+```
+
+Traditionally Democratic California is highly represented in cluster 1, with traditionally Republican Texas having the majority of its represenatives in cluster 5. 
+
+Let's get the average vote value for a random sampling of votes to see how the cluster members were voting on average:
+
+```{r}
+aggregate(data = h113_df, h113_df$`Vote 1` ~ cluster, mean)
+aggregate(data = h113_df, h113_df$`Vote 100` ~ cluster, mean)
+aggregate(data = h113_df, h113_df$`Vote 500` ~ cluster, mean)
+aggregate(data = h113_df, h113_df$`Vote 750` ~ cluster, mean)
+aggregate(data = h113_df, h113_df$`Vote 1100` ~ cluster, mean)
+```
+
+Recall that a value of 1 represents a Yea vote, with 6 indicating Nay. For the first two votes samples (1 and 100) it appears that cluster 5 (which we're beginning to determine is largely Republican) voted Nay on average, where cluster 1 (our theorized Democratic cluster) voted Yea. 
+
+The pattern then reverses for votes 750 and 1100. Without knowing the actual subjects of these votes, we cannot emphatically confirm our cluster assignments accurately reflect party membership and voting habits; however, this could be a very strong starting point for finding bigger patterns across the house voting data.
+
+### Senate Data
+
+To survey our senate data, the process will be largely the same. One minor difference is that the cd (Congressional district) feature is irrelevant here as Senators represent entire states and therefore have no separate district. We'll simply discard that feature for our senate analysis:
+
+```{r}
+s113_df.noFactors <- s113_df[-1]
+s113_df.noFactors <- s113_df.noFactors[-4]
+
+# also drop cd feature as it is not relevant for senators
+s113_df.noFactors <- s113_df.noFactors[-2]
+
+s113_df.noFactors <- as.data.frame(lapply(s113_df.noFactors, scale))
+str(s113_df.noFactors)
+
+senate.clusters <- kmeans(s113_df.noFactors, 5)
+senate.clusters$size
+s113_df$cluster <- senate.clusters$cluster
+```
+
+Now that our senate clusters have been created, we'll break the clusters down along similar lines as our house clusters:
+
+```{r}
+s113_df[, c("state", "party", "cluster")]
+table(s113_df$party, s113_df$cluster)
+```
+
+Republicans are almost entirely contained in either cluster 1 or 5, with Democrats mainly falling into cluster 4. Democrats are largely contained in one cluster, similar to the house clusters, with Republicans evenly distributed into two clusters. These are similar patterns found in the house data.
+
+Both of the Independent senators are in the same cluster, 4, which is comprised primarily of Democrats. 
+
+Let's run the average vote numbers for the senate clusters to see what those results tell us:
+
+```{r}
+aggregate(data = s113_df, s113_df$`Vote 1` ~ cluster, mean)
+aggregate(data = s113_df, s113_df$`Vote 100` ~ cluster, mean)
+aggregate(data = s113_df, s113_df$`Vote 200` ~ cluster, mean)
+aggregate(data = s113_df, s113_df$`Vote 300` ~ cluster, mean)
+```
+
+Clusters 1 and 5 appear to vote similarly, which makes sense given our insight into the party membership of each. It's interesting to note that for Vote 200, cluster 4 (Democrats) voted similarly to cluster 1 (Republicans) while cluster 5 (also Republicans) voted slightly differenlt on average.
+
+On the whole the senate appears to be a little more diverse, despite party membership clustering similarly. This could be due to the much smaller sample size given the size of each chamber of Congress.
+
+## Naive Bayes
+### House Data
+
+Now that we have discovered some interesting voting patterns in the house and senate data, let's see if we can use the same information to predict party membership based solely on voting data.
+
+Before building our Naive Bayes classifier, we need to create train and test data sets for model building and predicting:
+
+```{r}
+set.seed(123)
+train_sample <- sample(445, 356)
+train <- h113_df[train_sample,]
+test <- h113_df[-train_sample,]
+```
+
+We'll take this time to validate that the distribution of the political party feature is relatively even in the train and test data sets and extract the party values and store them in a separate list for later comparison:
+
+```{r}
+prop.table(table(train$party))
+prop.table(table(test$party))
+train_labels <- train[,"party"]
+test_labels <- test[,"party"]
+```
+
+All that's left is to train our classifier by passing the train data (minus the party feature), and the train labels for the same:
+
+```{r}
+house.classifier <- naiveBayes(train[-5], train_labels)
+```
+
+To make a prediction, we'll pass our classifier to the predict() function along with our test labels and build a confusion matrix to assess our results:
+
+```{r}
+house.classifier.prediction <- predict(house.classifier, test)
+confusionMatrix(house.classifier.prediction, test$party)
+```
+
+Our model was quite successful. It successfully predicted all the Democrats in our test set and 44/47 Republicans, putting our overall accuracy at: 96.6%. Even our kappa statistic of 0.93 indicates superior performance. Note that Democrat was used as our positive class, which simply means that feature value was used for reference to those without that value, not that Democrat is inherently better or worse than Republican.
+
+### Senate Data
+
+
+
+```{r}
+summary(s113_df$party)
+```
+
+```{r}
+set.seed(123)
+train_sample <- sample(106, 85)
+train <- s113_df[train_sample,]
+test <- s113_df[-train_sample,]
+```
+
+```{r}
+prop.table(table(train$party))
+prop.table(table(test$party))
+train_labels <- train[,"party"]
+test_labels <- test[,"party"]
+```
+
+```{r}
+senate.classifier <- naiveBayes(train[-5], train_labels)
+```
+
+```{r}
+senate.classifier.prediction <- predict(senate.classifier, test)
+confusionMatrix(senate.classifier.prediction, test$party)
+```
+
+## Conclusion
+
+[R Source](final-7.R)
