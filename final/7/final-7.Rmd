@@ -223,11 +223,15 @@ Our model was quite successful. It successfully predicted all the Democrats in o
 
 ### Senate Data
 
-
+Now we'll turn our attention to the senate roll call data to see if we can predict a sentor's party membership based on the voting data.
 
 ```{r}
 summary(s113_df$party)
 ```
+
+It's important to remember that two of our senators are Independents. In a Naive Bayes classifier, each feature is considered completely independent of the other features, which means that outliers such as this can have a disproportionate impact on the model. Additionally, since we have only two observations of this value, our train and test data could have different factor levels, which would cause our model to error out as it has previously seen during training, or never seen during testing, that factor level.
+
+We'll proceed as previously and make not of these issues during assessment:
 
 ```{r}
 set.seed(123)
@@ -236,12 +240,16 @@ train <- s113_df[train_sample,]
 test <- s113_df[-train_sample,]
 ```
 
+Here is where we can check to see how our two Independent samples are distributed:
+
 ```{r}
 prop.table(table(train$party))
 prop.table(table(test$party))
 train_labels <- train[,"party"]
 test_labels <- test[,"party"]
 ```
+
+Our two independent samples are evenly distributed, with one occurring in the train data, and one in the test data. This is still not an ideal scenario, as those outliers could unfairly influence the model, but we'll continue and 
 
 ```{r}
 senate.classifier <- naiveBayes(train[-5], train_labels)
