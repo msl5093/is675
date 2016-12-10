@@ -249,17 +249,29 @@ train_labels <- train[,"party"]
 test_labels <- test[,"party"]
 ```
 
-Our two independent samples are evenly distributed, with one occurring in the train data, and one in the test data. This is still not an ideal scenario, as those outliers could unfairly influence the model, but we'll continue and 
+Our two independent samples are evenly distributed, with one occurring in the train data, and one in the test data. This is still not an ideal scenario, as those outliers could unfairly influence the model, but we'll continue and note any signficant problems.
 
 ```{r}
 senate.classifier <- naiveBayes(train[-5], train_labels)
 ```
+
+We built our classifier in the same manner as the house data classifier. Next we'll make a prediction and check our results:
 
 ```{r}
 senate.classifier.prediction <- predict(senate.classifier, test)
 confusionMatrix(senate.classifier.prediction, test$party)
 ```
 
+Overall accuracy is very good, but in comparison falls a little short of the house classifier. This could be due to the limited sample size as there are much fewer senators than representatives in the house. Our kappa statistic however is very good and is an encouraging sign of how well our model would perform on an unseen set of data beyound our test set.
+
+It appears that the classifier had difficulty with the Indepedent sample in the test set as it is the only one that was incorrectly classified. It is interesting to note that our classifier predicted Democrat for this sample when the correct party was Independent when we consider that our clustering model found that Independent senators more often voted with Democrats. 
+
 ## Conclusion
+
+Through exploration of house and senate roll call data from the 113th Congressional session we were able to discover some interesting insights in the voting patterns and habits of representatives and senators. Not surprisingly, our clustering model found that more often than not, individuals from one party nearly always voted the same as their fellow party members on average. This appeared to be more true in the house than senate where there was a little more diversion, however small.
+
+It is also quite interesting, and perhaps expected, that many of our clusters were highy homgenous, in that several clusters for both the house and senate were comprised of entirely one party. 
+
+Perhaps it is because voting patterns so closely follow party membership and geography that our party membership classifiers were able to achieve such accuracy with little to no performance tuning or improvement. Because a Naive Bayes classifier works on previous examples to determine the likelihood of an unassigned sample falls into one class, it makes sense that if previous samples were strongly favoring one party that the classifier had little difficulty determining the unassigned sample's party.
 
 [R Source](final-7.R)
