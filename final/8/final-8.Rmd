@@ -151,6 +151,12 @@ Based on what we know about the distribution of the species values, it seems tha
 
 ## Conclusion
 
+Using the Iris data set, we applied two different clustering methods to the data to see what patterns emerged across the four features describing petal and speal length and width. K-Means clustering found that Iris-setosa plants' petal and sepal features are highly homogenous, in that the clustering model placed all 50 samples of Iris-setosa into one cluster. However, the K-Means cluster model had difficulty with the other two species, and had those samples appearing across the two other clusters.
 
+This does not necessarily mean that the model is bad, it may be the case the Iris-versicolor and Iris-virginica plants are much tougher to cluster homogenously.
+
+Hierarchical clustering, using the commplete linkage method, found similar clustering patterns across the different Iris species. When creating a hierarchical clustering model based on the average method, we were able to find extreely homogenous clusters, with only one of 150 Iris samples falling into a different cluster when comparing to species.
+
+In general hierarchical clustering works better when the data has an inherent hierarchical structure, and you are seeking to rediscover that hierarchy. The findings from our hierarchical cluster model would seem to imply that iris plant feature have an inherent hierarchical structure, meaning samples can be separated into homogenous groups 
 
 [R Source](final-8.R)
