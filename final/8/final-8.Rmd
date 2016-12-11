@@ -1,0 +1,127 @@
+---
+title: "Final-8"
+author: "Mike Lehman"
+date: "December 10, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to apply two different types of clustering algorithm to the widely used Iris data set to discover any patterns in the data that can be achieved through such unsupervised machine learning methods.
+
+For this assessment we will be comparing K-Means clustering and hierarchical clustering. Clustering is simply a way of dividing data into groups of similar items without having been instructed as to what the groups should look like prior to grouping. Clustering works by plotting all data points into a two-dimensional feature space, then assigning random fixed positions and drawing boundaries which attempt to group all data points in homogenous groups. 
+
+The k-means algorithm uses simple ideas that are easy to understand, but is lacking in sophistication and is driven by a process of random selection that often may require several iterations to extract any meaningful information. The algorithm uses Euclidean distance to determine the spatial distance between two data points to determine which items should be considered homogenous and cluster boundaries drawn.
+
+Hierarchical clustering involves creating clusters that have a predetermined ordering from top to bottom. There are two approaches to hierarchical clustering, divisive and agglomerative. In divisive clustering all observations are assigned to a single cluster, then the first cluster is partitioned into two clusters that are the least similar to one another. This proceeds recursively until there is one cluster for each observation. Agglomerative clustering assigns each observation to its own cluster, then computing the similarity between each of the clusters and joining the two most similar clusters. This step repeats until there is only a single cluster left.
+
+The iris data set contains 150 observations of iris plants and certain characteristics of each plant. The plant types have three possible class labels which correspond to the species of each plant. Features included in the data set are petal and sepal lengths and widths. There are exactly 50 observations of each species type.
+
+## K-Means Clustering
+
+To begin our clustering analyses, we will first load the iris data into R from the UCI Machine Learning Repository. 
+
+```{r}
+url = "http://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
+iris <- read.table(url, sep = ",", header = FALSE)
+str(iris)
+```
+
+We see there are the four numeric features regarding sepal length/width and petal length/width, as well as the species feature (V5) with the three factor levels for iris species.
+
+K-Means clustering relies on distance calculations and this we must first scale any numeric features to prevent large outlier values from influencing the distance calculations:
+
+```{r}
+iris.z <- as.data.frame(lapply(iris[-5], scale))
+iris.z$V5 <- iris$V5
+str(iris.z)
+```
+
+Here we've applied R's scale function, which reassings all our numeric features using a z-score to instead have every value reflect its distance in standard deviation from the mean value in a new data frame to preserve the original data. We've also added the species feature into the new data frame for reference.
+
+Now that our numeric features have been standardized, we can pass our new data frame to the kmeans() function, excepting the species factor vector since categorical data cannot be processed in a K-Means algorithm. 
+
+For the number of cluster centers to consider, we will use three since there are a total of three possible iris species:
+
+```{r}
+iris.kmeans <- kmeans(iris.z[-5], 3)
+iris.kmeans$size
+iris.kmeans$centers
+```
+
+The three cluster sizes are all almost exactly 50, with one (cluster three) being just that. This means that our clusters may quite accurately reflect actual species labels. This could mean that the four numeric features could be highly homogenous in value as they relate to the obervations species. The cluster centers for each feature all seem to be quite close as well.
+
+To further examine how the cluster assignments relate to the species label, we can assign the cluster assignments back to the original data set:
+
+```{r}
+iris.z$cluster <- iris.kmeans$cluster
+iris.z[, c("V5", "cluster")]
+```
+
+It appears that the Iris-Setosa species observations are all contained within cluster three. The other two species appear to have their observations randomly assigned across the other two clusters. We can dig a little deeper by building a simple table to see the assignment breakdowns:
+
+```{r}
+table(iris.z$V5, iris.z$cluster)
+```
+
+The two other species have almost identical cluster assignments. For example, cluster one has 11 samples or Iris-versicolor and 36 of Iris-virginica. The opposite distribution of species can be seen in cluster two, but with similar values. 
+
+This distribution of cluster assignments seems to indicate that Iris-setosa plants have a high degree of homogeniety for its four feature values regarding petal and speal widths and lengths, but that the other two species have a high degree of heterogeneity with regard to their feature values.
+
+```{r}
+aggregate(data = iris.z, iris.z$V1 ~ cluster, mean)
+aggregate(data = iris.z, iris.z$V2 ~ cluster, mean)
+aggregate(data = iris.z, iris.z$V3 ~ cluster, mean)
+aggregate(data = iris.z, iris.z$V4 ~ cluster, mean)
+```
+
+Here we've printed the mean values of each of the four numeric variables and aggergated them by cluster. Not suprisingly, cluster three's mean feature values all appear to be quite close whereas clusters one and two appear to have a slightly larger distributions of values. 
+
+Through a simple K-Means clustering model, we have learned the Iris-setosa plants tend to be very uniform and have highly similar characteristics when it comes to petal and speal lengths and widths. 
+
+Next we will follow hierarchical clustering methods to see if the same results bear out using a different approach to clustering.
+
+## Hierarchical Clustering 
+
+Hierarchical clustering is in some ways similar to decision tree models. Both are greedy algorithms which seek to optimize locally, which can result in suboptimal models, unlike K-Means which seeks to optimize globally by finding the optimal variance across clusters. Divisize clustering (a type of hierarchical clustering) is even conceptually similar to a decision tree in that all samples begin in one cluster with cluster splits being made iteratively until all samples are in unqiue clusters.
+
+Agglomerative clustering proceeds in the opposite direction and assigns each samples to its own cluster, then iterates to determine which clusters should be joined and continues until each sample is assigned to a single cluster. Conceptually this is like an upside-down decision tree.
+
+For our hierarchical clustering approach, each model we build will be based on agglomerative clustering. 
+
+To begin we will need to reassing the numeirc features within the iris data frame to a matrix. Specifically the data structure we need is a distance/dissimilarity matrix. This is simply a matrix that contains the distances between the elements of a set. 
+
+```{r}
+iris.matrix <- dist(as.matrix(iris.z[-5]))
+```
+
+```{r}
+iris.hc <- hclust(iris.matrix)
+plot(iris.hc) 
+```
+
+```{r}
+iris.hc.cut <- cutree(iris.hc, 3)
+```
+
+```{r}
+table(iris.hc.cut, iris$V5)
+```
+
+```{r}
+iris.hc.2 <- hclust(iris.matrix, method = 'average')
+plot(iris.hc.2)
+```
+
+```{r}
+iris.hc.cut.2 <- cutree(iris.hc.2, 3)
+table(iris.hc.cut.2, iris$V5)
+```
+
+## Conclusion
+
+[R Source](final-8.R)

@@ -6,6 +6,9 @@ library(e1071)
 library(gmodels)
 library(caret)
 
+##################################################
+# Naive Bayes
+##################################################
 url = "http://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
 iris <- read.table(url, sep = ",", header = FALSE)
 str(iris)
@@ -21,9 +24,6 @@ prop.table(table(test$V5))
 train_labels <- train[,"V5"]
 test_labels <- test[,"V5"]
 
-##################################################
-# Naive Bayes
-##################################################
 classifier <- naiveBayes(train[-5], train_labels)
 classifier
 
