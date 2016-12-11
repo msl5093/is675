@@ -93,35 +93,64 @@ Agglomerative clustering proceeds in the opposite direction and assigns each sam
 
 For our hierarchical clustering approach, each model we build will be based on agglomerative clustering. 
 
-To begin we will need to reassing the numeirc features within the iris data frame to a matrix. Specifically the data structure we need is a distance/dissimilarity matrix. This is simply a matrix that contains the distances between the elements of a set. 
+To begin we will need to reassing the numeirc features within the iris data frame to a matrix. Specifically the data structure we need is a distance/dissimilarity matrix. This is simply a matrix that contains the distances between the elements (features) of a set:
 
 ```{r}
 iris.matrix <- dist(as.matrix(iris.z[-5]))
 ```
+
+Now that we have a distance matrix we can use that to build our hierarchical cluster model:
 
 ```{r}
 iris.hc <- hclust(iris.matrix)
 plot(iris.hc) 
 ```
 
+From the plot of the cluster model, we can see a dendrogram that shows each of the feature values terminating in their own cluster at the bottom of the tree. The y-axis is a measure of closeness of the individual data points and clusters. Each split shows a case where a new cluster was created based on an agglomerative approach as described above.
+
+For modeling real world relationships it is not ideal to represent each feature in its own independent cluster. The ideal number of clusters is somewhere higher up in the dendrogram. Cutting a dendrogram refers to slicing a portion of the model out of the larger dendrogram based on a pre-determined value.
+
+Similar to K-Means, the decision of when to cut a dendrogram is largely arbitrary and highly dependent on the context of the data. Since we are dealing with three possible classes of iris plant, we will cut the dendrogram at three clusters to get more useful results:
+
 ```{r}
 iris.hc.cut <- cutree(iris.hc, 3)
+iris.hc.cut
 ```
+
+This produces a list of numeric values that correspond to cluster assignments. We can take this information and cross-reference it to the species values from our original data set to find how cluster assignments correspond to iris species:
 
 ```{r}
 table(iris.hc.cut, iris$V5)
 ```
+
+Our hierarchical clustering model appears to have produced similar results to our K-Means cluster, that Iris-setosa plants fall almost entirely within one cluster, with the other two being split. Although it appears that our hierarchical clustering model did not quite assign all Iris-setosa samples to one single cluster. 
+
+We can attempt to improve our model's performance by specifying a method parameter when building the cluster. The method parameter refers to the linkage criteria, which determines the distance between sets of observations as a function of the pairwise distance between observations. Basically, how is the distance between data points calculated when considering new clusters. 
+
+The default method for hclust is complete linkage. In complete linkage, the distance between two data points is the largest distance between two points in opposite groups.
+
+Average linkage takes the average distance over all points in opposite groups. The linkage method chosen determines how the distance between two clusters is defined. 
+
+We'll now create a clsutering model using the average linkage method to see if we can produce more useful results:
 
 ```{r}
 iris.hc.2 <- hclust(iris.matrix, method = 'average')
 plot(iris.hc.2)
 ```
 
+Once again we will cut the dendrogram at three and compare those results to the species labels:
+
 ```{r}
 iris.hc.cut.2 <- cutree(iris.hc.2, 3)
 table(iris.hc.cut.2, iris$V5)
 ```
 
+Using the average linkage method, we were able to produce much more homogenous results. So much so that Iris-versicolor and Iris-virginica samples now fall entirely into their own clusters. Only one Iris-setosa sample was placed into a different cluster. 
+
+Based on what we know about the distribution of the species values, it seems that our second hierarchical clustering model closely models the actual values. It is hard to say whether the model was able to arrive at such assignments based on mere chance, or through actual patterns found in the four petal and sepal features, but based on our understanding of the data, we can be quite confident that our clusters accurately reflect patterns in the data.
+
 ## Conclusion
+
+
 
 [R Source](final-8.R)

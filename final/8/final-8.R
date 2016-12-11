@@ -39,6 +39,7 @@ iris.hc <- hclust(iris.matrix)
 plot(iris.hc) 
 
 iris.hc.cut <- cutree(iris.hc, 3)
+iris.hc.cut
 
 table(iris.hc.cut, iris$V5)
 
