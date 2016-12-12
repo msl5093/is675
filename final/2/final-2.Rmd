@@ -1,0 +1,155 @@
+---
+title: "Final-2"
+author: "Mike Lehman"
+date: "December 11, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this assessment is to compare two different supervised machine learning methods for classification and compre their performances. To complete this assessment we will use the Iris data set. 
+
+The iris data set contains 150 observations of iris plants and certain characteristics of each plant. The plant types have three possible class labels which correspond to the species of each plant. Features included in the data set are petal and sepal lengths and widths. There are exactly 50 observations of each species type.
+
+The two methods we will be comparing are Naive Bayes and Artificial Neural Networks. 
+
+Naive Bayes classifiers are simple but powerful models for assigning class labels to instances represented as a vector of feature values. Naive Bayes are known as such, as they are based on Bayesian probability and also assume that the value of a feature is indepdendent of the value of any other feature within the vector. Although Bayesion probability is often used, Naive Bayes classifiers can also apply non-Bayesian probability measures such as maximum-likelihood.
+
+The implementation we will use can found in e1071 R package uses posterior probability. In short, posterior probability is the conditional probability of a value based on the study of previous examples and given another event with the same conditions occurred previously.
+
+Artificial Neural Networks (ANNs) can be used in multiple machine learning environments and use cases. ANNs can be used in classification tasks as well predciting both linear and non-linear continuous variables. Neural networks seeks to model biological brains by accepting numeric parameters and, through a process of iteration, determing the optimal mathematical function to achieve a desired continuous feature's value. In the case of classification tasks, neural networks determine the probability of a sample being of a certain class type, and then using that probability to make a final determination as to the class label.
+
+```{r include=FALSE}
+library(nnet)
+library(e1071)
+library(gmodels)
+library(caret)
+```
+
+## Naive Bayes
+
+TO being our Naive Bayes classifier we will read the Iris data set into R from the UCI Machine Learning Database:
+
+```{r}
+url = "http://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
+iris <- read.table(url, sep = ",", header = FALSE)
+str(iris)
+```
+
+We see there are the four numeric features regarding sepal length/width and petal length/width, as well as the species feature (V5) with the three factor levels for iris species. Naive Bayes classifiers can adapt to a wide variety of data types and feature values. Little to no preprocessing may be necessary. 
+
+Next, we'll create train and test data sets for building and improving our classifier:
+
+```{r}
+set.seed(123)
+train_sample <- sample(150, 105)
+train <- iris[train_sample,]
+test <- iris[-train_sample,]
+
+prop.table(table(train$V5))
+prop.table(table(test$V5))
+```
+
+We've created the above tables to verify that the three class labels of Iris plant have even distributions across both the train and test data sets. The levels are close enough that we may continue. Next, we'll need to extract the class labels from the train and test data sets as the labels must be withheld during model fitting:
+
+```{r}
+train_labels <- train[,"V5"]
+test_labels <- test[,"V5"]
+```
+
+Now that we have our train and test data sets and class labels, we can build our classifier. To do so, we'll pass our entire train data set (minus the species vector) to the naiveBayes() function, along with the train labels:
+
+```{r}
+classifier <- naiveBayes(train[-5], train_labels)
+```
+
+This creates a classifier object that contains all the information regarding species prediction that the model learned. To make use of the algorithm, we'll have to make a prediction on the test data. After that we will create a detailed confusion matrix using the caret() package to assess our results along a number of different metrics:
+
+```{r}
+test.pred <- predict(classifier, test)
+confusionMatrix(test.pred, test_labels)
+```
+
+Our model achieved a high degree of accuracy (93%), and seemed to have no trouble at all with classifying Iris-setosa samples. A kappa statistic of 0.8989 (close to 1) tells us that this model performs much better than simply guessing the class labels and being correct by random chance. 
+
+These results were quite encouraging, but we can fine tune our approach to see if we can get even closer. 
+
+Using the caret package, we can create a control object and a parameter tuning grid. The control object will inform our model to use 10-fold cross-validation to iterate models. This means that the train data will be split into 10 random subsets, and that the algorithm's models will be iterated over a validation set prior to being turned loose on the training data.
+
+Finally, the parameter tuning grid will specify the Laplacian estimator (.fl) to adjust for infrequently occurring feature observations:
+
+```{r}
+ctrl <- trainControl(method = "cv", number = 10)
+grid <- expand.grid(.fL = 1, .usekernel = FALSE, .adjust = 1)
+set.seed(123)
+model = train(train[-5], train_labels, method = 'nb',trControl = ctrl, tuneGrid = grid)
+model
+```
+
+From the outpout of our model, we can see that the algorithm achieved accuracy of (97%), and a kappa statistic of 0.95. These are the results against the training data. To truly see if this model improves our performance, we can run it against the test data to predict for Iris species:
+
+```{r}
+p <- predict(model, test)
+confusionMatrix(p, test_labels)
+```
+
+Despite fine tuning our approach, this second model performed indentically to the first. It could be that the data set in total is simply too small for any greater accuracy to be achieved. In general we should be quite imrpressed with these results, and reasonably confident that this model would translate well to further unseen data.
+
+## Artificial Neural Network
+
+Now that we have built Naive Bayes classifiers that have managed a high degree of accuracy, we will compare those results to an Artifical Neural Network classifier. 
+
+ANNs rely on the numeric features that are fed into the model to be either normalized or standardized. Large ranges in values can influence the model while it tries to account for significant outliers. We will apply a min-max normalization to the Iris data's numeric features. Min-max normalization adjusts all values to occuring between 0 and 1, thus shrinking the range.
+
+To accomplish this, we will create a custom function and transform all the numeric features. We will store the results in a new data frame to preserve the original data set:
+
+```{r}
+normalize <- function(x) { 
+  return((x - min(x)) / (max(x) - min(x)))
+}
+
+summary(iris)
+iris.norm <- as.data.frame(lapply(iris[1:4], normalize))
+iris.norm$V5 <- iris[,5]
+summary(iris.norm)
+```
+
+From the output, we can see that all our numeric features now have a range of values falling between 0 and 1. Now that we have a normalized set of data, we will have to re-create our train and test data sets and extract the class labels:
+
+```{r}
+set.seed(123)
+train_sample <- sample(150, 112)
+train <- iris.norm[train_sample,]
+test <- iris.norm[-train_sample,]
+train_labels <- train[,"V5"]
+test_labels <- test[,"V5"]
+```
+
+Now that we have our data normalized, and train and test sets prepared, we can build our ANN. To do so, we will use the nnet() package for R, which allows for easy classification using ANNs. We'll start with a neural network model with one hidden node (size = 1):
+
+```{r}
+iris.ann <- nnet(V5 ~ ., data = train, size = 1)
+```
+
+The output shows us that the model stopped after 100 iterations. We can also see that the model learned 11 different weights (adjustments made to the input values to determine the optimal output value). To assess the performance of our model, we can make a prediction using the predict() function as before, but this time specifying a type of "class" to inform the function that we are making a classification prediction:
+
+```{r}
+iris.prediction <- predict(iris.ann, test, type = "class")
+confusionMatrix(iris.prediction, test_labels)
+```
+
+The resulting confusion matrix shows us that our ANN beat our Naive Bayes classifier with both higher accuracy and kappa values. It is quite impressive that we were able to achieve such good numbers with an ANN model using only a single hidden node.
+
+## Conclusion
+
+In this assessment we have created and compared the performance of: Naive Bayes classifiers and Artificial Neural Networks as classifiers. Our Artifical Neural Network model was able to best the performance of our Naive Bayes classifier, although only slightly. This could be because of the underlying nature of the data. In general, ANNs are good to modeling non-linear relationships. It could be that the Iris petal and speal lengths and widths do not in general have any kind of strong correlation to species type. 
+
+It could also be that the Iris features have some sort of interdependence. Naive Bayes models, as a rule, assume completed independence of each feature. This assumption may cause the model to miss subtle patterns and associations within the data.
+
+In general, both of our classifiers performed quite well. But this was with a very small data set that required only minimal preprocessing. ANNs often require extensive preprocessing and are much more computationally expensive. Naive Bayes classifiers typcially require no preprocessing and can handle data of various types. In specific case an ANN may have performed better, but in generalizing to more complex, large problems, a Naive Bayes classifier may be more successfuly when considering the minor accuracy trade-off may offer much better performance with less overhead. 
+
+[R Source](final-2.R)
